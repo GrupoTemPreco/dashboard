@@ -9,33 +9,40 @@ export const useSupabase = () => {
   const fetchFaturamento = async (filters: any = {}) => {
     setLoading(true);
     setError(null);
-    
+
     try {
+      console.log('🔍 fetchFaturamento - filtros recebidos:', filters);
+      
       // Teste simples primeiro - buscar todos os dados sem filtros
       const { error: testError } = await supabase
         .from('faturamento')
         .select('*')
         .limit(5);
-      
+
       let query = supabase
         .from('faturamento')
         .select(`
           *,
           unidades(nome, codigo)
         `)
+        .gte('ano_mes', '2025-01') // Excluir dezembro 2024 e anteriores
         .order('ano_mes', { ascending: true });
 
       if (filters.unidade && filters.unidade !== 'all') {
+        console.log('🔍 Aplicando filtro de unidade:', filters.unidade);
         query = query.eq('unidade_negocio', filters.unidade);
       }
 
       if (filters.periodo && filters.periodo !== 'all') {
+        console.log('🔍 Aplicando filtro de período:', filters.periodo);
         query = query.eq('ano_mes', filters.periodo);
       }
 
       const { data, error } = await query;
-      
+
       if (error) throw error;
+      console.log('🔍 Dados retornados do fetchFaturamento:', data?.length, 'registros');
+      console.log('🔍 Meses nos dados retornados:', [...new Set(data?.map(item => item.ano_mes) || [])]);
       return data as Faturamento[];
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao buscar faturamento');
@@ -45,19 +52,31 @@ export const useSupabase = () => {
     }
   };
 
-  const fetchEstoque = async () => {
+  const fetchEstoque = async (filters: any = {}) => {
     setLoading(true);
     setError(null);
-    
+
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('estoque_2')
         .select(`
           *,
           unidades(nome, codigo)
         `)
+        .gte('ano_mes', '2025-01') // Excluir dezembro 2024 e anteriores
         .order('valor_estoque', { ascending: false });
-      
+
+      // Aplicar filtros se fornecidos
+      if (filters.unidade && filters.unidade !== 'all') {
+        query = query.eq('unidade_id', filters.unidade);
+      }
+
+      if (filters.periodo && filters.periodo !== 'all') {
+        query = query.eq('ano_mes', filters.periodo);
+      }
+
+      const { data, error } = await query;
+
       if (error) throw error;
       return data;
     } catch (err) {
@@ -71,7 +90,7 @@ export const useSupabase = () => {
   const fetchEstoque2 = async (filters: any = {}) => {
     setLoading(true);
     setError(null);
-    
+
     try {
       let query = supabase
         .from('estoque_2')
@@ -79,6 +98,7 @@ export const useSupabase = () => {
           *,
           unidades(nome, codigo)
         `)
+        .gte('ano_mes', '2025-01') // Excluir dezembro 2024 e anteriores
         .order('valor_estoque', { ascending: false });
 
       // Aplicar filtros se fornecidos
@@ -91,7 +111,7 @@ export const useSupabase = () => {
       }
 
       const { data, error } = await query;
-      
+
       if (error) throw error;
       return data;
     } catch (err) {
@@ -105,13 +125,13 @@ export const useSupabase = () => {
   const fetchUnidades = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const { data, error } = await supabase
         .from('unidades')
         .select('*')
         .order('nome', { ascending: true });
-      
+
       if (error) throw error;
       return data as Unidade[];
     } catch (err) {
@@ -125,7 +145,7 @@ export const useSupabase = () => {
   const fetchVendasPorItem = async (filters: any = {}) => {
     setLoading(true);
     setError(null);
-    
+
     try {
       let query = supabase
         .from('vendas_item')
@@ -134,6 +154,7 @@ export const useSupabase = () => {
           produtos(nome, fabricante),
           unidades(nome, codigo)
         `)
+        .gte('ano_mes', '2025-01') // Excluir dezembro 2024 e anteriores
         .order('valor_venda', { ascending: false });
 
       if (filters.unidade && filters.unidade !== 'all') {
@@ -145,7 +166,7 @@ export const useSupabase = () => {
       }
 
       const { data, error } = await query;
-      
+
       if (error) throw error;
       return data as VendaItem[];
     } catch (err) {
@@ -159,7 +180,7 @@ export const useSupabase = () => {
   const fetchCMV = async (filters: any = {}) => {
     setLoading(true);
     setError(null);
-    
+
     try {
       let query = supabase
         .from('faturamento')
@@ -167,6 +188,7 @@ export const useSupabase = () => {
           *,
           unidades(nome, codigo)
         `)
+        .gte('ano_mes', '2025-01') // Excluir dezembro 2024 e anteriores
         .order('ano_mes', { ascending: true });
 
       // Aplicar filtros se fornecidos
@@ -179,7 +201,7 @@ export const useSupabase = () => {
       }
 
       const { data, error } = await query;
-      
+
       if (error) throw error;
       return data;
     } catch (err) {
@@ -193,7 +215,7 @@ export const useSupabase = () => {
   const fetchColaboradores = async (filters: any = {}) => {
     setLoading(true);
     setError(null);
-    
+
     try {
       let query = supabase
         .from('colaboradores')
@@ -201,6 +223,7 @@ export const useSupabase = () => {
           *,
           unidades(nome, codigo)
         `)
+        .gte('ano_mes', '2025-01') // Excluir dezembro 2024 e anteriores
         .order('ano_mes', { ascending: true });
 
       // Aplicar filtros se fornecidos
@@ -217,7 +240,7 @@ export const useSupabase = () => {
       }
 
       const { data, error } = await query;
-      
+
       if (error) throw error;
       return data as Colaborador[];
     } catch (err) {

@@ -115,6 +115,7 @@ export interface DashboardFilters {
   periodo: string;
   unidade: string;
   categoria: string;
+  searchCollaborator: string;
 }
 
 export interface DashboardMetrics {

@@ -1,12 +1,12 @@
 import React from 'react';
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement } from 'chart.js';
-import { Bar, Doughnut } from 'react-chartjs-2';
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement, PointElement, LineElement } from 'chart.js';
+import { Bar, Doughnut, Line } from 'react-chartjs-2';
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement, PointElement, LineElement);
 
 interface ChartCardProps {
   title: string;
-  type: 'bar' | 'doughnut';
+  type: 'bar' | 'doughnut' | 'line';
   data: {
     labels: string[];
     datasets: {
@@ -15,6 +15,10 @@ interface ChartCardProps {
       backgroundColor: string | string[];
       borderColor?: string | string[];
       borderWidth?: number;
+      fill?: boolean;
+      tension?: number;
+      pointRadius?: number;
+      pointHoverRadius?: number;
     }[];
   };
   onBarClick?: (label: string) => void;
@@ -40,7 +44,7 @@ const ChartCard: React.FC<ChartCardProps> = ({ title, type, data, onBarClick, fo
         displayColors: false,
         callbacks: {
           label: function (context: any) {
-            if (type === 'bar') {
+            if (type === 'bar' || type === 'line') {
               const value = context.parsed.y;
               let label = '';
               if (formatType === 'days') {
@@ -66,7 +70,7 @@ const ChartCard: React.FC<ChartCardProps> = ({ title, type, data, onBarClick, fo
         }
       }
     },
-    scales: type === 'bar' ? {
+    scales: type === 'bar' || type === 'line' ? {
       x: {
         grid: {
           display: false,
@@ -98,12 +102,11 @@ const ChartCard: React.FC<ChartCardProps> = ({ title, type, data, onBarClick, fo
                 style: 'currency',
                 currency: 'BRL',
                 minimumFractionDigits: 0,
-                maximumFractionDigits: 0
               });
             }
           }
-        },
-      },
+        }
+      }
     } : undefined,
     onClick: (event: any, elements: any) => {
       if (onBarClick && elements.length > 0) {
@@ -142,12 +145,13 @@ const ChartCard: React.FC<ChartCardProps> = ({ title, type, data, onBarClick, fo
   };
 
   return (
-    <div className="chart-card" style={{ height: '300px' }}>
-      {type === 'bar' ? (
-        <Bar data={data} options={options} />
-      ) : (
-        <Doughnut data={data} options={options} />
-      )}
+    <div className="chart-card-inner">
+      {title && <div className="chart-title-main">{title}</div>}
+      <div className="chart-content" style={{ height: 300 }}>
+        {type === 'bar' && <Bar data={data} options={options} />}
+        {type === 'doughnut' && <Doughnut data={data} options={options} />}
+        {type === 'line' && <Line data={data} options={options} />}
+      </div>
     </div>
   );
 };

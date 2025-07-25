@@ -4,7 +4,7 @@ export const sampleFaturamento = [
   {
     unidade_id: 2,
     ano_mes: '2025-01',
-    itens_vendidos: 36526.00,
+    itens_vendidos: 36526,
     valor_venda: 2149853.13,
     percentual_total: 13.31,
     valor_desconto: 226656.23,
@@ -17,7 +17,7 @@ export const sampleFaturamento = [
   {
     unidade_id: 2,
     ano_mes: '2025-02',
-    itens_vendidos: 38000.00,
+    itens_vendidos: 38000,
     valor_venda: 2132210.78,
     percentual_total: 13.82,
     valor_desconto: 235000.00,
@@ -30,7 +30,7 @@ export const sampleFaturamento = [
   {
     unidade_id: 2,
     ano_mes: '2025-03',
-    itens_vendidos: 42000.00,
+    itens_vendidos: 42000,
     valor_venda: 2097140.83,
     percentual_total: 15.28,
     valor_desconto: 260000.00,
@@ -43,7 +43,7 @@ export const sampleFaturamento = [
   {
     unidade_id: 2,
     ano_mes: '2025-04',
-    itens_vendidos: 8000.00,
+    itens_vendidos: 8000,
     valor_venda: 322317.31,
     percentual_total: 2.00,
     valor_desconto: 50000.00,
@@ -56,7 +56,7 @@ export const sampleFaturamento = [
   {
     unidade_id: 3,
     ano_mes: '2025-01',
-    itens_vendidos: 25000.00,
+    itens_vendidos: 25000,
     valor_venda: 1470925.73,
     percentual_total: 9.94,
     valor_desconto: 169600.00,
@@ -69,7 +69,7 @@ export const sampleFaturamento = [
   {
     unidade_id: 3,
     ano_mes: '2025-02',
-    itens_vendidos: 28000.00,
+    itens_vendidos: 28000,
     valor_venda: 1320015.48,
     percentual_total: 11.13,
     valor_desconto: 190000.00,
@@ -82,7 +82,7 @@ export const sampleFaturamento = [
   {
     unidade_id: 3,
     ano_mes: '2025-03',
-    itens_vendidos: 32000.00,
+    itens_vendidos: 32000,
     valor_venda: 1402722.76,
     percentual_total: 12.72,
     valor_desconto: 217000.00,
@@ -95,7 +95,7 @@ export const sampleFaturamento = [
   {
     unidade_id: 4,
     ano_mes: '2025-01',
-    itens_vendidos: 18000.00,
+    itens_vendidos: 18000,
     valor_venda: 919455.11,
     percentual_total: 7.15,
     valor_desconto: 122000.00,
@@ -108,7 +108,7 @@ export const sampleFaturamento = [
   {
     unidade_id: 6,
     ano_mes: '2025-01',
-    itens_vendidos: 15000.00,
+    itens_vendidos: 15000,
     valor_venda: 762461.05,
     percentual_total: 5.96,
     valor_desconto: 101800.00,
@@ -121,7 +121,7 @@ export const sampleFaturamento = [
   {
     unidade_id: 7,
     ano_mes: '2025-01',
-    itens_vendidos: 22000.00,
+    itens_vendidos: 22000,
     valor_venda: 787806.93,
     percentual_total: 8.74,
     valor_desconto: 149200.00,
@@ -134,7 +134,7 @@ export const sampleFaturamento = [
   {
     unidade_id: 8,
     ano_mes: '2025-01',
-    itens_vendidos: 12000.00,
+    itens_vendidos: 12000,
     valor_venda: 38134.99,
     percentual_total: 4.77,
     valor_desconto: 81400.00,
@@ -220,7 +220,7 @@ export const sampleEstoque = [
     ultima_venda: '2025-01-15',
     ultima_compra: '2024-12-01',
     dias_estoque: 45,
-    valor_estoque: 24999.00
+    valor_estoque: 2407
   },
   {
     produto_id: 2,
@@ -232,7 +232,7 @@ export const sampleEstoque = [
     ultima_venda: '2025-01-10',
     ultima_compra: '2024-11-15',
     dias_estoque: 55,
-    valor_estoque: 19954.31
+    valor_estoque: 2319
   },
   {
     produto_id: 3,
@@ -244,7 +244,7 @@ export const sampleEstoque = [
     ultima_venda: '2025-01-20',
     ultima_compra: '2024-12-10',
     dias_estoque: 40,
-    valor_estoque: 16132.56
+    valor_estoque: 2199
   },
   {
     produto_id: 4,
@@ -256,7 +256,7 @@ export const sampleEstoque = [
     ultima_venda: '2025-01-05',
     ultima_compra: '2024-11-20',
     dias_estoque: 46,
-    valor_estoque: 11976.00
+    valor_estoque: 2073
   },
   {
     produto_id: 5,
@@ -268,7 +268,7 @@ export const sampleEstoque = [
     ultima_venda: '2025-01-12',
     ultima_compra: '2024-12-05',
     dias_estoque: 38,
-    valor_estoque: 10998.07
+    valor_estoque: 2004
   },
   {
     produto_id: 6,
@@ -280,7 +280,7 @@ export const sampleEstoque = [
     ultima_venda: '2025-01-08',
     ultima_compra: '2024-12-03',
     dias_estoque: 35,
-    valor_estoque: 10758.33
+    valor_estoque: 1919
   },
   {
     produto_id: 7,
@@ -292,7 +292,7 @@ export const sampleEstoque = [
     ultima_venda: '2025-01-18',
     ultima_compra: '2024-12-08',
     dias_estoque: 41,
-    valor_estoque: 9943.79
+    valor_estoque: 1837
   },
   {
     produto_id: 8,
@@ -304,7 +304,7 @@ export const sampleEstoque = [
     ultima_venda: '2025-01-14',
     ultima_compra: '2024-12-06',
     dias_estoque: 39,
-    valor_estoque: 9681.39
+    valor_estoque: 1700
   },
   {
     produto_id: 9,
@@ -316,7 +316,7 @@ export const sampleEstoque = [
     ultima_venda: '2025-01-16',
     ultima_compra: '2024-12-09',
     dias_estoque: 38,
-    valor_estoque: 9402.24
+    valor_estoque: 1600
   },
   {
     produto_id: 10,
@@ -328,7 +328,7 @@ export const sampleEstoque = [
     ultima_venda: '2025-01-11',
     ultima_compra: '2024-12-04',
     dias_estoque: 37,
-    valor_estoque: 9231.33
+    valor_estoque: 1500
   },
   {
     produto_id: 11,
@@ -340,7 +340,7 @@ export const sampleEstoque = [
     ultima_venda: '2025-01-09',
     ultima_compra: '2024-12-02',
     dias_estoque: 38,
-    valor_estoque: 8781.35
+    valor_estoque: 1400
   },
   {
     produto_id: 12,
@@ -352,7 +352,7 @@ export const sampleEstoque = [
     ultima_venda: '2025-01-07',
     ultima_compra: '2024-12-01',
     dias_estoque: 37,
-    valor_estoque: 8731.72
+    valor_estoque: 1300
   },
   {
     produto_id: 13,
@@ -364,7 +364,7 @@ export const sampleEstoque = [
     ultima_venda: '2025-01-13',
     ultima_compra: '2024-12-07',
     dias_estoque: 36,
-    valor_estoque: 8397.69
+    valor_estoque: 1200
   },
   {
     produto_id: 14,
@@ -376,7 +376,7 @@ export const sampleEstoque = [
     ultima_venda: '2025-01-17',
     ultima_compra: '2024-12-11',
     dias_estoque: 37,
-    valor_estoque: 8288.91
+    valor_estoque: 1100
   },
   {
     produto_id: 15,
@@ -388,7 +388,7 @@ export const sampleEstoque = [
     ultima_venda: '2025-01-19',
     ultima_compra: '2024-12-13',
     dias_estoque: 37,
-    valor_estoque: 7994.93
+    valor_estoque: 1000
   },
   {
     produto_id: 16,
@@ -400,7 +400,7 @@ export const sampleEstoque = [
     ultima_venda: '2025-01-21',
     ultima_compra: '2024-12-15',
     dias_estoque: 37,
-    valor_estoque: 7799.79
+    valor_estoque: 900
   },
   {
     produto_id: 17,
@@ -412,6 +412,6 @@ export const sampleEstoque = [
     ultima_venda: '2025-01-23',
     ultima_compra: '2024-12-17',
     dias_estoque: 37,
-    valor_estoque: 7749.00
+    valor_estoque: 800
   }
 ]; 

@@ -6,7 +6,7 @@ import { BarChart3, Upload, FileSpreadsheet } from 'lucide-react';
 
 function App() {
   const [currentView, setCurrentView] = useState<'dashboard' | 'upload' | 'excel'>('dashboard');
-  
+
   const handleUploadComplete = () => {
     setCurrentView('dashboard');
   };
@@ -37,22 +37,20 @@ function App() {
               </button>
               <button
                 onClick={() => setCurrentView('upload')}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  currentView === 'upload'
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-600 hover:text-blue-600'
-                }`}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${currentView === 'upload'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-600 hover:text-blue-600'
+                  }`}
               >
                 <Upload className="inline h-4 w-4 mr-2" />
                 Upload CSV
               </button>
               <button
                 onClick={() => setCurrentView('excel')}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  currentView === 'excel'
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-600 hover:text-blue-600'
-                }`}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${currentView === 'excel'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-600 hover:text-blue-600'
+                  }`}
               >
                 <FileSpreadsheet className="inline h-4 w-4 mr-2" />
                 Importar Excel

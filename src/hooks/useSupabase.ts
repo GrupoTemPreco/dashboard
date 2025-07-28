@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { Faturamento, VendaItem, Unidade, Colaborador } from '../types';
 
@@ -6,7 +6,7 @@ export const useSupabase = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchFaturamento = async (filters: any = {}) => {
+  const fetchFaturamento = useCallback(async (filters: any = {}) => {
     setLoading(true);
     setError(null);
 
@@ -50,9 +50,9 @@ export const useSupabase = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchEstoque = async (filters: any = {}) => {
+  const fetchEstoque = useCallback(async (filters: any = {}) => {
     setLoading(true);
     setError(null);
 
@@ -85,9 +85,9 @@ export const useSupabase = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchEstoque2 = async (filters: any = {}) => {
+  const fetchEstoque2 = useCallback(async (filters: any = {}) => {
     setLoading(true);
     setError(null);
 
@@ -134,9 +134,9 @@ export const useSupabase = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchUnidades = async () => {
+  const fetchUnidades = useCallback(async () => {
     setLoading(true);
     setError(null);
 
@@ -154,9 +154,9 @@ export const useSupabase = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchVendasPorItem = async (filters: any = {}) => {
+  const fetchVendasPorItem = useCallback(async (filters: any = {}) => {
     setLoading(true);
     setError(null);
 
@@ -189,9 +189,9 @@ export const useSupabase = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchCMV = async (filters: any = {}) => {
+  const fetchCMV = useCallback(async (filters: any = {}) => {
     setLoading(true);
     setError(null);
 
@@ -224,9 +224,9 @@ export const useSupabase = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchColaboradores = async (filters: any = {}) => {
+  const fetchColaboradores = useCallback(async (filters: any = {}) => {
     setLoading(true);
     setError(null);
 
@@ -263,7 +263,7 @@ export const useSupabase = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   return {
     loading,

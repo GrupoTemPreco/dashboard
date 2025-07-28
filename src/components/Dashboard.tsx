@@ -10,7 +10,7 @@ import {
   Legend,
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
-import type { ChartData } from 'chart.js';
+import type { ChartData, TooltipItem } from 'chart.js';
 
 // Registrar componentes do Chart.js
 ChartJS.register(
@@ -54,6 +54,40 @@ import DashboardFilters from './DashboardFilters';
 import { useSupabase } from '../hooks/useSupabase';
 import { DashboardFilters as FilterType, Faturamento, Estoque2, Unidade, Colaborador } from '../types';
 import '../styles/dashboard.css';
+
+interface ColaboradorMetricsAcumulador {
+  user_name: string;
+  user_id: string;
+  unidade_negocio: number;
+  total_venda: number;
+  total_itens: number;
+  ticket_medio: number;
+}
+
+interface LojaMetricsAcumulador {
+  loja_id: string;
+  total_venda: number;
+  total_itens: number;
+  ticket_medio: number;
+}
+
+interface LojaMargemBrutaAcumulador {
+  loja_id: string;
+  total_venda: number;
+  total_custo: number;
+  margem_bruta: number;
+}
+
+interface ProdutoAgrupado {
+  produto_nome: string;
+  fabricante: string;
+  quantidade: number;
+  valor_estoque: number;
+  dias_estoque: number;
+  ultima_venda_dias: number;
+  ultima_compra_dias: number;
+  count: number;
+}
 
 const Dashboard: React.FC = () => {
   const [filters, setFilters] = useState<FilterType>({
@@ -170,25 +204,46 @@ const Dashboard: React.FC = () => {
   };
 
   // Função para obter o ID da unidade baseado no nome
-  // const getUnidadeIdByName = (nome: string): number | null => {
-  //   const unidade = unidades.find(u => u.nome === nome);
-  //   return unidade ? unidade.id : null;
-  // };
 
   // Função para obter o nome da unidade baseado no ID
-  const getUnidadeNameById = (id: number): string => {
+  const getUnidadeNameById = useCallback((id: number): string => {
     const unidade = unidades.find(u => u.id === id);
     return unidade ? unidade.nome : 'Loja Desconhecida';
-  };
+  }, [unidades]);
 
   // Estados para dados completos dos modais (sem filtros)
   const [modalFaturamentoData, setModalFaturamentoData] = useState<Faturamento[]>([]);
   const [modalCmvData, setModalCmvData] = useState<Faturamento[]>([]);
   const [modalColaboradoresData, setModalColaboradoresData] = useState<Colaborador[]>([]);
 
+  const loadData = useCallback(async () => {
+    console.log('🔄 Carregando dados com filtros:', filters);
+    const [faturamentoData, estoqueData, unidadesData, , colaboradoresData] = await Promise.all([
+      fetchFaturamento(filters),
+      fetchEstoque(filters), // Usar fetchEstoque com filtros
+      fetchUnidades(),
+      fetchCMV(filters),
+      fetchColaboradores(filters)
+    ]);
+
+    // --- FILTRO DE CATEGORIA ---
+    // Nota: Filtro de categoria removido temporariamente pois a propriedade não existe nos tipos
+    // TODO: Implementar filtro de categoria quando a propriedade for adicionada aos tipos
+    const faturamentoFiltrado = faturamentoData;
+    const estoqueFiltrado = estoqueData;
+    const colaboradoresFiltrado = colaboradoresData;
+    // --- FIM FILTRO DE CATEGORIA ---
+
+    console.log('📊 Dados carregados - faturamento:', faturamentoFiltrado.length, 'estoque:', estoqueFiltrado.length);
+    setFaturamento(faturamentoFiltrado);
+    setEstoque(estoqueFiltrado);
+    setUnidades(unidadesData);
+    setColaboradores(colaboradoresFiltrado);
+  }, [filters, fetchFaturamento, fetchEstoque, fetchUnidades, fetchCMV, fetchColaboradores]);
+
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   // Recarregar dados quando os filtros mudarem
   useEffect(() => {
@@ -202,7 +257,7 @@ const Dashboard: React.FC = () => {
       console.log('📅 Limpando selectedMonth');
       setSelectedMonth(null);
     }
-  }, [filters.periodo, filters.unidade]);
+  }, [filters.periodo, filters.unidade, loadData]);
 
   // Resetar filtro se o período selecionado não existir nos dados ou for de 2024
   // (Movido para depois da declaração de availablePeriods e handleFiltersChange)
@@ -217,32 +272,7 @@ const Dashboard: React.FC = () => {
       );
       if (!existe) setSelectedProduct(null);
     }
-  }, [selectedMonth, filters.unidade]);
-
-  const loadData = async () => {
-    console.log('🔄 Carregando dados com filtros:', filters);
-    const [faturamentoData, estoqueData, unidadesData, , colaboradoresData] = await Promise.all([
-      fetchFaturamento(filters),
-      fetchEstoque(filters), // Usar fetchEstoque com filtros
-      fetchUnidades(),
-      fetchCMV(filters),
-      fetchColaboradores(filters)
-    ]);
-
-    // --- FILTRO DE CATEGORIA ---
-    // Nota: Filtro de categoria removido temporariamente pois a propriedade não existe nos tipos
-    // TODO: Implementar filtro de categoria quando a propriedade for adicionada aos tipos
-    let faturamentoFiltrado = faturamentoData;
-    let estoqueFiltrado = estoqueData;
-    let colaboradoresFiltrado = colaboradoresData;
-    // --- FIM FILTRO DE CATEGORIA ---
-
-    console.log('📊 Dados carregados - faturamento:', faturamentoFiltrado.length, 'estoque:', estoqueFiltrado.length);
-    setFaturamento(faturamentoFiltrado);
-    setEstoque(estoqueFiltrado);
-    setUnidades(unidadesData);
-    setColaboradores(colaboradoresFiltrado);
-  };
+  }, [selectedMonth, filters.unidade, estoque, selectedProduct]);
 
   const handleImportComplete = () => {
     setShowImportModal(false);
@@ -478,7 +508,7 @@ const Dashboard: React.FC = () => {
   };
 
   // Função utilitária para garantir que gráficos tenham pelo menos dois pontos
-  const ensureLineChart = (labels: string[], data: number[]) => {
+  const ensureLineChart = (labels: string[], data: number[]): { labels: string[]; data: number[] } => {
     if (labels.length === 1 && data.length === 1) {
       return {
         labels: [labels[0], labels[0]],
@@ -1075,7 +1105,7 @@ const Dashboard: React.FC = () => {
       diasEstoqueChartData,
       cmvChartData
     };
-  }, [faturamento, estoque, selectedMonth, selectedProduct]);
+  }, [faturamento, estoque, selectedMonth, selectedProduct, getUnidadeNameById]);
 
   // Obter meses e anos disponíveis para os filtros
   const availablePeriods = useMemo(() => {
@@ -1168,20 +1198,20 @@ const Dashboard: React.FC = () => {
       acc[key].total_venda += item.valor_venda || 0;
       acc[key].total_itens += item.itens_vendidos || 0;
       return acc;
-    }, {} as Record<string, any>);
+    }, {} as Record<string, ColaboradorMetricsAcumulador>);
 
     // Calcular ticket médio para cada colaborador (total_venda / total_itens)
-    Object.values(ticketMedioPorColaborador).forEach((colaborador: any) => {
+    Object.values(ticketMedioPorColaborador).forEach((colaborador: ColaboradorMetricsAcumulador) => {
       colaborador.ticket_medio = colaborador.total_itens > 0 ? colaborador.total_venda / colaborador.total_itens : 0;
     });
 
     // Ordenar por ticket médio (do maior para o menor)
     const ticketMedioOrdenado = Object.values(ticketMedioPorColaborador)
-      .sort((a: any, b: any) => b.ticket_medio - a.ticket_medio);
+      .sort((a: ColaboradorMetricsAcumulador, b: ColaboradorMetricsAcumulador) => b.ticket_medio - a.ticket_medio);
 
     // Se um colaborador específico foi selecionado, mostrar apenas ele
     const ticketMedioFinal = selectedCollaborator
-      ? ticketMedioOrdenado.filter((item: any) => item.user_id === selectedCollaborator)
+      ? ticketMedioOrdenado.filter((item: ColaboradorMetricsAcumulador) => item.user_id === selectedCollaborator)
       : ticketMedioOrdenado; // Todos os colaboradores se nenhum colaborador selecionado
 
     // Calcular quantidade de vendas por colaborador
@@ -1191,6 +1221,7 @@ const Dashboard: React.FC = () => {
         acc[key] = {
           user_name: key,
           user_id: item.user_id,
+          unidade_negocio: item.unidade_negocio,
           total_itens: 0,
           total_venda: 0,
           ticket_medio: 0
@@ -1199,20 +1230,20 @@ const Dashboard: React.FC = () => {
       acc[key].total_itens += item.itens_vendidos || 0;
       acc[key].total_venda += item.valor_venda || 0;
       return acc;
-    }, {} as Record<string, any>);
+    }, {} as Record<string, ColaboradorMetricsAcumulador>);
 
     // Calcular ticket médio para cada colaborador (total_venda / total_itens)
-    Object.values(quantidadeVendasPorColaborador).forEach((colaborador: any) => {
+    Object.values(quantidadeVendasPorColaborador).forEach((colaborador) => {
       colaborador.ticket_medio = colaborador.total_itens > 0 ? colaborador.total_venda / colaborador.total_itens : 0;
     });
 
     // Ordenar por quantidade de vendas
     const colaboradoresPorQuantidade = Object.values(quantidadeVendasPorColaborador)
-      .sort((a: any, b: any) => b.total_itens - a.total_itens);
+      .sort((a, b) => b.total_itens - a.total_itens);
 
     // Se um colaborador específico foi selecionado, mostrar apenas ele
     const quantidadeVendasFinal = selectedCollaborator
-      ? colaboradoresPorQuantidade.filter((colaborador: any) => colaborador.user_id === selectedCollaborator)
+      ? colaboradoresPorQuantidade.filter((colaborador) => colaborador.user_id === selectedCollaborator)
       : colaboradoresPorQuantidade; // Todos se nenhum colaborador selecionado
 
     // Calcular ticket médio por loja (valor_venda / itens_vendidos)
@@ -1229,16 +1260,16 @@ const Dashboard: React.FC = () => {
       acc[lojaId].total_venda += item.valor_venda || 0;
       acc[lojaId].total_itens += item.itens_vendidos || 0;
       return acc;
-    }, {} as Record<string, any>);
+    }, {} as Record<string, LojaMetricsAcumulador>);
 
     // Calcular ticket médio para cada loja (total_venda / total_itens)
-    Object.values(ticketMedioPorLoja).forEach((loja: any) => {
+    Object.values(ticketMedioPorLoja).forEach((loja: LojaMetricsAcumulador) => {
       loja.ticket_medio = loja.total_itens > 0 ? loja.total_venda / loja.total_itens : 0;
     });
 
     // Ordenar lojas por ticket médio
     const lojasPorTicket = Object.values(ticketMedioPorLoja)
-      .sort((a: any, b: any) => b.ticket_medio - a.ticket_medio);
+      .sort((a: LojaMetricsAcumulador, b: LojaMetricsAcumulador) => b.ticket_medio - a.ticket_medio);
 
     // Calcular margem bruta por loja
     const margemBrutaPorLoja = dadosColaboradores.reduce((acc, item) => {
@@ -1254,16 +1285,16 @@ const Dashboard: React.FC = () => {
       acc[lojaId].total_venda += item.valor_venda || 0;
       acc[lojaId].total_custo += item.valor_custo || 0;
       return acc;
-    }, {} as Record<string, any>);
+    }, {} as Record<string, LojaMargemBrutaAcumulador>);
 
     // Calcular margem bruta para cada loja
-    Object.values(margemBrutaPorLoja).forEach((loja: any) => {
+    Object.values(margemBrutaPorLoja).forEach((loja: LojaMargemBrutaAcumulador) => {
       loja.margem_bruta = loja.total_venda > 0 ? ((loja.total_venda - loja.total_custo) / loja.total_venda) * 100 : 0;
     });
 
     // Ordenar lojas por margem bruta
     const lojasPorMargem = Object.values(margemBrutaPorLoja)
-      .sort((a: any, b: any) => b.margem_bruta - a.margem_bruta);
+      .sort((a: LojaMargemBrutaAcumulador, b: LojaMargemBrutaAcumulador) => b.margem_bruta - a.margem_bruta);
 
     return {
       ticketMedioPorColaborador: ticketMedioFinal, // Usar ticketMedioFinal que já inclui a filtragem
@@ -1371,11 +1402,11 @@ const Dashboard: React.FC = () => {
       acc[key].count += 1;
 
       return acc;
-    }, {} as Record<string, any>);
+    }, {} as Record<string, ProdutoAgrupado>);
 
     // Calcular médias e ordenar por tempo no estoque
     const produtosRankeados = Object.values(produtosAgrupados)
-      .map((produto: any) => ({
+      .map((produto: ProdutoAgrupado) => ({
         produto_nome: produto.produto_nome,
         fabricante: produto.fabricante,
         dias_estoque: Math.round(produto.dias_estoque / produto.count),
@@ -1962,7 +1993,7 @@ const Dashboard: React.FC = () => {
                         title=""
                         type="line"
                         onHover={setHoveredFaturamentoIndex}
-                        data={(() => {
+                        chartData={(() => {
                           // Cores para as lojas - Paleta mais distinta e contrastante
                           const cores = getChartColors();
                           // Filtrar faturamento conforme seleção do modal
@@ -2024,7 +2055,7 @@ const Dashboard: React.FC = () => {
                             };
                           });
                           return {
-                            labels: chartLabels,
+                            labels: chartLabels as string[],
                             datasets,
                           };
                         })()}
@@ -2215,7 +2246,7 @@ const Dashboard: React.FC = () => {
                         title=""
                         type="line"
                         onHover={setHoveredCmvIndex}
-                        data={(() => {
+                        chartData={(() => {
                           // Cores para as lojas - Paleta mais distinta e contrastante
                           const cores = getChartColors();
                           // Filtrar CMV conforme seleção do modal
@@ -2279,7 +2310,7 @@ const Dashboard: React.FC = () => {
                             };
                           });
                           return {
-                            labels: chartLabels,
+                            labels: chartLabels as string[],
                             datasets,
                           };
                         })()}
@@ -2463,7 +2494,7 @@ const Dashboard: React.FC = () => {
                         title=""
                         type="line"
                         onHover={setHoveredMargemBrutaIndex}
-                        data={(() => {
+                        chartData={(() => {
                           // Cores para as lojas - Paleta mais distinta e contrastante
                           const cores = getChartColors();
                           // Filtrar dados conforme seleção do modal
@@ -2528,7 +2559,7 @@ const Dashboard: React.FC = () => {
                             };
                           });
                           return {
-                            labels: chartLabels,
+                            labels: chartLabels as string[],
                             datasets,
                           };
                         })()}
@@ -2620,7 +2651,7 @@ const Dashboard: React.FC = () => {
                       <ChartCard
                         title=""
                         type="bar"
-                        data={chartData.diasEstoqueChartData as any}
+                        chartData={chartData.diasEstoqueChartData}
                         formatType="days"
                       />
                     </div>
@@ -2770,7 +2801,7 @@ const Dashboard: React.FC = () => {
                   <div className="colaboradores-list" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
                     {showQuantidadeVendasModalView ? (
                       // Modo Quantidade de Vendas
-                      colaboradoresMetrics.colaboradoresPorQuantidade?.map((colaborador: any, index: number) => (
+                      colaboradoresMetrics.colaboradoresPorQuantidade?.map((colaborador: ColaboradorMetricsAcumulador, index: number) => (
                         <div key={colaborador.user_id} className="colaborador-item">
                           <div className="colaborador-info">
                             <span
@@ -2799,7 +2830,7 @@ const Dashboard: React.FC = () => {
                       ))
                     ) : (
                       // Modo Ticket Médio
-                      colaboradoresMetrics.ticketMedioPorColaborador?.map((colaborador: any) => (
+                      colaboradoresMetrics.ticketMedioPorColaborador?.map((colaborador: ColaboradorMetricsAcumulador) => (
                         <div key={colaborador.user_id} className="colaborador-item">
                           <div className="colaborador-info">
                             <span
@@ -2834,7 +2865,7 @@ const Dashboard: React.FC = () => {
                     Ticket Médio por Loja
                   </h3>
                   <div className="lojas-list" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
-                    {colaboradoresMetrics.lojasPorTicket?.map((loja: any) => (
+                    {colaboradoresMetrics.lojasPorTicket?.map((loja: LojaMetricsAcumulador) => (
                       <div key={loja.loja_id} className="loja-item">
                         <div className="loja-info">
                           <span className="loja-name">LOJA {loja.loja_id}</span>
@@ -3117,7 +3148,7 @@ const Dashboard: React.FC = () => {
                     title=""
                     type="line"
                     onHover={setHoveredColaboradoresIndex}
-                    data={(() => {
+                    chartData={(() => {
                       // Cores para as lojas - Paleta mais distinta e contrastante
                       const cores = getChartColors();
                       // Filtrar colaboradores conforme seleção do modal
@@ -3172,7 +3203,7 @@ const Dashboard: React.FC = () => {
                         };
                       });
                       return {
-                        labels: chartLabels,
+                        labels: chartLabels as string[],
                         datasets,
                       };
                     })()}
@@ -3766,7 +3797,7 @@ Preço Unitário: R$ ${(item.valor_estoque || 0).toLocaleString('pt-BR')}
                                   mode: 'index' as const,
                                   intersect: false,
                                   callbacks: {
-                                    label: function (context: any) {
+                                    label: function (context: TooltipItem<'line'>) {
                                       let label = context.dataset.label || '';
                                       if (label) {
                                         label += ': ';
@@ -3806,8 +3837,8 @@ Preço Unitário: R$ ${(item.valor_estoque || 0).toLocaleString('pt-BR')}
                                     color: 'rgba(0, 0, 0, 0.1)'
                                   },
                                   ticks: {
-                                    callback: function (value: any) {
-                                      return 'R$ ' + value.toLocaleString('pt-BR');
+                                    callback: function (value: string | number) {
+                                      return 'R$ ' + Number(value).toLocaleString('pt-BR');
                                     }
                                   }
                                 },

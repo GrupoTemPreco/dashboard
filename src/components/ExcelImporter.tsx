@@ -280,16 +280,6 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
         continue; // Pular linha de cabeçalho
       }
 
-      // Detectar dados de vendas por unidade
-      // Procurar por códigos de unidade (1-2 dígitos) que não são datas
-      const unidadeMatch = rowValues.find((value, index) => {
-        const strValue = value.toString().trim();
-        // Verificar se é um código de unidade válido (1-2 dígitos)
-        return /^\d{1,2}$/.test(strValue) &&
-          !strValue.includes('-') && // Não é uma data
-          index < rowValues.length - 3; // Tem espaço para dados seguintes
-      });
-
       if (unidadeMatch && currentUser && currentAnoMes) {
         currentUnidade = unidadeMatch.toString().trim();
         console.log(`🏢 Processando unidade ${currentUnidade} para ${currentUser} em ${currentAnoMes}`);

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement, PointElement, LineElement } from 'chart.js';
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement, PointElement, LineElement, ChartOptions, TooltipItem, ChartEvent, ActiveElement } from 'chart.js';
 import { Bar, Doughnut, Line } from 'react-chartjs-2';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement, PointElement, LineElement);
@@ -7,7 +7,7 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend,
 interface ChartCardProps {
   title: string;
   type: 'bar' | 'doughnut' | 'line';
-  data: {
+  chartData: {
     labels: string[];
     datasets: {
       label: string;
@@ -27,8 +27,9 @@ interface ChartCardProps {
   onHover?: (datasetIndex: number | null) => void;
 }
 
-const ChartCard: React.FC<ChartCardProps> = ({ title, type, data, onBarClick, formatType = 'currency', getTooltipExtra, onHover }) => {
-  const options: any = {
+const ChartCard: React.FC<ChartCardProps> = ({ title, type, chartData, onBarClick, formatType = 'currency', getTooltipExtra, onHover }) => {
+  // Usar ChartOptions com tipo genérico para manter tipagem adequada
+  const options: ChartOptions<'bar' | 'line' | 'doughnut'> = {
     responsive: true,
     maintainAspectRatio: false,
     interaction: {
@@ -48,7 +49,7 @@ const ChartCard: React.FC<ChartCardProps> = ({ title, type, data, onBarClick, fo
         cornerRadius: 8,
         displayColors: false,
         callbacks: {
-          label: function (context: any) {
+          label: function (context: TooltipItem<'bar' | 'line' | 'doughnut'>) {
             if (type === 'bar' || type === 'line') {
               const value = context.parsed.y;
               let label = '';
@@ -62,6 +63,7 @@ const ChartCard: React.FC<ChartCardProps> = ({ title, type, data, onBarClick, fo
                   currency: 'BRL'
                 });
               }
+              // A propriedade getTooltipExtra agora é reconhecida devido à extensão da interface ChartOptions
               if (typeof context.chart?.options?.getTooltipExtra === 'function') {
                 const extra = context.chart.options.getTooltipExtra(context.label);
                 if (extra) {
@@ -70,7 +72,14 @@ const ChartCard: React.FC<ChartCardProps> = ({ title, type, data, onBarClick, fo
               }
               return label;
             }
-            return context.parsed;
+            // Para outros tipos de gráfico (ex: doughnut), ou se não for bar/line, retorna o valor formatado
+            if (typeof context.parsed === 'number') {
+              if (formatType === 'currency') {
+                return context.parsed.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+              }
+              return context.parsed.toLocaleString('pt-BR');
+            }
+            return String(context.parsed); // Garante que o retorno é sempre string
           }
         }
       }
@@ -96,14 +105,14 @@ const ChartCard: React.FC<ChartCardProps> = ({ title, type, data, onBarClick, fo
           font: {
             size: 12,
           },
-          callback: function (value: any) {
+          callback: function (value: string | number) {
             if (formatType === 'days') {
-              return `${value.toLocaleString('pt-BR')} dias`;
+              return `${Number(value).toLocaleString('pt-BR')} dias`;
             } else if (formatType === 'number') {
-              return value.toLocaleString('pt-BR');
+              return Number(value).toLocaleString('pt-BR');
             } else {
               // currency (padrão)
-              return value.toLocaleString('pt-BR', {
+              return Number(value).toLocaleString('pt-BR', {
                 style: 'currency',
                 currency: 'BRL',
                 minimumFractionDigits: 0,
@@ -113,14 +122,14 @@ const ChartCard: React.FC<ChartCardProps> = ({ title, type, data, onBarClick, fo
         }
       }
     } : undefined,
-    onClick: (_event: any, elements: any) => {
+    onClick: (_event: ChartEvent, elements: ActiveElement[]) => {
       if (onBarClick && elements.length > 0) {
         const index = elements[0].index;
-        const label = data.labels[index];
+        const label = chartData.labels[index];
         onBarClick(label);
       }
     },
-    onHover: (event: any, elements: any) => {
+    onHover: (event: ChartEvent, elements: ActiveElement[]) => {
       // Sistema de hover para legendas (funciona para pontos e linhas)
       if (onHover) {
         if (elements && elements.length > 0) {
@@ -132,10 +141,12 @@ const ChartCard: React.FC<ChartCardProps> = ({ title, type, data, onBarClick, fo
       }
 
       // Sistema de hover para barras (mantém funcionalidade existente)
-      const canvas = event.native.target;
+      const canvas = event.native?.target as HTMLCanvasElement; // Adicionar verificação de nulidade
+      if (!canvas) return; // Sair se canvas for nulo
+
       if (type === 'bar' && elements.length > 0) {
         canvas.style.cursor = 'pointer';
-        const chart = canvas.chart;
+        const chart = (canvas as HTMLCanvasElement & { chart?: ChartJS }).chart;
         if (chart && chart.data.datasets[0].backgroundColor) {
           const originalColors = chart.data.datasets[0].backgroundColor as string[];
           const hoverColors = originalColors.map((_color: string, index: number) => {
@@ -146,7 +157,7 @@ const ChartCard: React.FC<ChartCardProps> = ({ title, type, data, onBarClick, fo
         }
       } else if (type === 'bar') {
         canvas.style.cursor = 'default';
-        const chart = canvas.chart;
+        const chart = (canvas as HTMLCanvasElement & { chart?: ChartJS }).chart;
         if (chart && chart.data.datasets[0].backgroundColor) {
           const originalColors = chart.data.datasets[0].backgroundColor as string[];
           const normalColors = originalColors.map(() => '#dc2626');
@@ -162,9 +173,9 @@ const ChartCard: React.FC<ChartCardProps> = ({ title, type, data, onBarClick, fo
     <div className="chart-card-inner">
       {title && <div className="chart-title-main">{title}</div>}
       <div className="chart-content" style={{ height: 300 }}>
-        {type === 'bar' && <Bar data={data} options={options} />}
-        {type === 'doughnut' && <Doughnut data={data} options={options} />}
-        {type === 'line' && <Line data={data} options={options} />}
+        {type === 'bar' && <Bar data={chartData} options={options} />}
+        {type === 'doughnut' && <Doughnut data={chartData} options={options} />}
+        {type === 'line' && <Line data={chartData} options={options} />}
       </div>
     </div>
   );

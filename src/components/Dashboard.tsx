@@ -48,9 +48,11 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ChartCard, ExcelImporter, DashboardFilters, type ChartCardProps } from './index';
+import ChartCard from './ChartCard';
+import ExcelImporter from './ExcelImporter';
+import DashboardFilters from './DashboardFilters';
 import { useSupabase } from '../hooks/useSupabase';
-import type { DashboardFilters as FilterType, Faturamento, Estoque2, Unidade, Colaborador } from '../types';
+import { DashboardFilters as FilterType, Faturamento, Estoque2, Unidade, Colaborador } from '../types';
 import '../styles/dashboard.css';
 
 const Dashboard: React.FC = () => {
@@ -168,10 +170,10 @@ const Dashboard: React.FC = () => {
   };
 
   // Função para obter o ID da unidade baseado no nome
-  const getUnidadeIdByName = (nome: string): number | null => {
-    const unidade = unidades.find(u => u.nome === nome);
-    return unidade ? unidade.id : null;
-  };
+  // const getUnidadeIdByName = (nome: string): number | null => {
+  //   const unidade = unidades.find(u => u.nome === nome);
+  //   return unidade ? unidade.id : null;
+  // };
 
   // Função para obter o nome da unidade baseado no ID
   const getUnidadeNameById = (id: number): string => {
@@ -922,7 +924,7 @@ const Dashboard: React.FC = () => {
     const data = Object.values(faturamentoPorMes);
 
     // Garantir que há pelo menos dois pontos para formar uma linha
-    const { labels: faturamentoLabels, data: faturamentoData } = ensureLineChart(labels, data as number[]);
+    const { labels: faturamentoLabels, data: faturamentoData } = ensureLineChart(labels, data);
 
     const backgroundColor = faturamentoLabels.map(label => {
       if (selectedMonth === label) {
@@ -970,7 +972,7 @@ const Dashboard: React.FC = () => {
 
     const vendasLojaLabels = Object.keys(vendasPorLoja);
     const vendasLojaData = Object.values(vendasPorLoja);
-    const { labels: vendasLojaChartLabels, data: vendasLojaChartDataValues } = ensureLineChart(vendasLojaLabels, vendasLojaData as number[]);
+    const { labels: vendasLojaChartLabels, data: vendasLojaChartDataValues } = ensureLineChart(vendasLojaLabels, vendasLojaData);
 
     const vendasLojaChartData: ChartData<'bar'> = {
       labels: vendasLojaChartLabels as string[],
@@ -1372,12 +1374,15 @@ const Dashboard: React.FC = () => {
     }, {} as Record<string, any>);
 
     // Calcular médias e ordenar por tempo no estoque
-    const produtosRankeados = Object.values(produtosAgrupados as Record<string, any>)
+    const produtosRankeados = Object.values(produtosAgrupados)
       .map((produto: any) => ({
-        ...produto,
+        produto_nome: produto.produto_nome,
+        fabricante: produto.fabricante,
         dias_estoque: Math.round(produto.dias_estoque / produto.count),
         ultima_venda_dias: Math.round(produto.ultima_venda_dias / produto.count),
-        ultima_compra_dias: Math.round(produto.ultima_compra_dias / produto.count)
+        ultima_compra_dias: Math.round(produto.ultima_compra_dias / produto.count),
+        quantidade: produto.quantidade,
+        valor_estoque: produto.valor_estoque
       }))
       .sort((a, b) => b.dias_estoque - a.dias_estoque)
       .slice(0, 50); // Top 50 produtos
@@ -1392,7 +1397,48 @@ const Dashboard: React.FC = () => {
       (!selectedMonth || item.ano_mes === selectedMonth)
     )
     .map(item => ({
-      ...item,
+      id: item.id,
+      unidade_id: item.unidade_id,
+      produto_nome: item.produto_nome,
+      fabricante: item.fabricante,
+      quantidade: item.quantidade,
+      valor_estoque: item.valor_estoque,
+      dias_estoque: item.dias_estoque,
+      data_atualizacao: item.data_atualizacao,
+      data_estocagem: item.data_estocagem,
+      ano_mes: item.ano_mes,
+      necessidade: item.necessidade,
+      estoque_confirmado: item.estoque_confirmado,
+      comprar: item.comprar,
+      curva_qtd: item.curva_qtd,
+      media_venda_mensal: item.media_venda_mensal,
+      estoque_final_dias: item.estoque_final_dias,
+      classificacao_principal: item.classificacao_principal,
+      preco_venda_medio: item.preco_venda_medio,
+      ultima_venda_dias: item.ultima_venda_dias,
+      transferencia_confirmada: item.transferencia_confirmada,
+      comprar_dias: item.comprar_dias,
+      necessidade_dias: item.necessidade_dias,
+      ultima_compra_dias: item.ultima_compra_dias,
+      apelido_unidade: item.apelido_unidade,
+      fornecedor_ultima_compra: item.fornecedor_ultima_compra,
+      media_venda_diaria: item.media_venda_diaria,
+      qtd_demanda: item.qtd_demanda,
+      estoque_minimo: item.estoque_minimo,
+      origem_estoque_minimo: item.origem_estoque_minimo,
+      custo: item.custo,
+      custo_medio: item.custo_medio,
+      curva_valor: item.curva_valor,
+      custo_x_necessidade: item.custo_x_necessidade,
+      custo_x_estoque: item.custo_x_estoque,
+      ruptura_venda: item.ruptura_venda,
+      necessidade_qtd: item.necessidade_qtd,
+      percentual_suprida_qtd: item.percentual_suprida_qtd,
+      compra_confirmada: item.compra_confirmada,
+      encomenda: item.encomenda,
+      created_at: item.created_at,
+      updated_at: item.updated_at,
+      unidades: item.unidades,
       valorTotalItem: (item.quantidade || 0) * (item.valor_estoque || 0)
     }));
   // Filtro para Valor de Estoque (removido pois não é usado)

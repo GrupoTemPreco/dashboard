@@ -20,12 +20,12 @@ const FileUpload: React.FC<FileUploadProps> = ({ onUploadComplete }) => {
 
         const data = new Uint8Array(e.target?.result as ArrayBuffer);
         const workbook = XLSX.read(data, { type: 'array' });
-        
+
         // Processar diferentes planilhas
         for (const sheetName of workbook.SheetNames) {
           const worksheet = workbook.Sheets[sheetName];
           const jsonData = XLSX.utils.sheet_to_json(worksheet);
-          
+
           await processSheetData(sheetName, jsonData);
         }
 
@@ -125,14 +125,14 @@ const FileUpload: React.FC<FileUploadProps> = ({ onUploadComplete }) => {
         <FileText className="h-5 w-5" />
         Upload de Dados Excel
       </h2>
-      
+
       {error && (
         <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md flex items-center gap-2 text-red-700">
           <AlertCircle className="h-5 w-5" />
           {error}
         </div>
       )}
-      
+
       <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
         <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
         <p className="text-gray-600 mb-4">
@@ -148,16 +148,15 @@ const FileUpload: React.FC<FileUploadProps> = ({ onUploadComplete }) => {
         />
         <label
           htmlFor="file-upload"
-          className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white ${
-            uploading
-              ? 'bg-gray-400 cursor-not-allowed'
-              : 'bg-blue-600 hover:bg-blue-700 cursor-pointer'
-          } transition-colors duration-200`}
+          className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white ${uploading
+            ? 'bg-gray-400 cursor-not-allowed'
+            : 'bg-blue-600 hover:bg-blue-700 cursor-pointer'
+            } transition-colors duration-200`}
         >
           {uploading ? 'Processando...' : 'Selecionar Arquivo'}
         </label>
       </div>
-      
+
       <div className="mt-4 text-sm text-gray-500">
         <p>Formatos aceitos: .xlsx, .xls</p>
         <p>Planilhas suportadas: Faturamento, Estoque, Vendas</p>

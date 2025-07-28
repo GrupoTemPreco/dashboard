@@ -263,6 +263,30 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
           index < rowValues.length - 3; // Tem espaço para dados seguintes
       });
 
+      // Detectar padrão de data (dd/mm/yyyy)
+      const dateMatch = rowString.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+      if (dateMatch && !currentAnoMes) {
+        // const day = dateMatch[1];
+        const month = dateMatch[2];
+        const year = dateMatch[3];
+        currentAnoMes = `${year}-${month}`;
+        console.log(`📅 Encontrado período (da data): ${currentAnoMes}`);
+        continue;
+      }
+
+      // Detectar se é uma linha de cabeçalho de tabela
+      if (rowString.includes('cód. un. neg.') && rowString.includes('itens') && rowString.includes('venda')) {
+        console.log(`📋 Pulando linha ${i + 1} - cabeçalho de tabela`);
+        continue; // Pular linha de cabeçalho
+      }
+
+      // Detectar se é uma linha de dados válida (tem código de unidade)
+      // Procurar por códigos de unidade (1-2 dígitos) em qualquer coluna
+      const unidadeMatch = rowValues.find(value =>
+        value && /^\d{1,2}$/.test(value.toString().trim())
+      );
+>>>>>>> e8aad01ea72af4acf226143b9b3884148ec764a8
+
       if (unidadeMatch && currentUser && currentAnoMes) {
         currentUnidade = unidadeMatch.toString().trim();
         console.log(`🏢 Processando unidade ${currentUnidade} para ${currentUser} em ${currentAnoMes}`);

@@ -122,9 +122,10 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
           >
             <option value="all">Todas as categorias</option>
-            <option value="medicamentos">Medicamentos</option>
-            <option value="cosmeticos">Cosméticos</option>
-            <option value="higiene">Higiene</option>
+            <option value="bonificado">Bonificado</option>
+            <option value="etico">Ético</option>
+            <option value="perfumaria">Perfumaria</option>
+            <option value="oficinais">Oficinais</option>
           </select>
         </div>
       </div>

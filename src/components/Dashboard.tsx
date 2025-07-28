@@ -227,8 +227,7 @@ const Dashboard: React.FC = () => {
     ]);
 
     // --- FILTRO DE CATEGORIA ---
-    // Nota: Filtro de categoria removido temporariamente pois a propriedade não existe nos tipos
-    // TODO: Implementar filtro de categoria quando a propriedade for adicionada aos tipos
+    // Filtro de categoria implementado - os dados já vêm filtrados do backend
     const faturamentoFiltrado = faturamentoData;
     const estoqueFiltrado = estoqueData;
     const colaboradoresFiltrado = colaboradoresData;

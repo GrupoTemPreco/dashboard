@@ -38,6 +38,12 @@ export const useSupabase = () => {
         query = query.eq('ano_mes', filters.periodo);
       }
 
+      // Temporariamente desabilitado até a coluna categoria ser criada no banco
+      // if (filters.categoria && filters.categoria !== 'all') {
+      //   console.log('🔍 Aplicando filtro de categoria:', filters.categoria);
+      //   query = query.eq('categoria', filters.categoria);
+      // }
+
       const { data, error } = await query;
 
       if (error) throw error;
@@ -74,6 +80,11 @@ export const useSupabase = () => {
       if (filters.periodo && filters.periodo !== 'all') {
         query = query.eq('ano_mes', filters.periodo);
       }
+
+      // Temporariamente desabilitado até a coluna categoria ser criada no banco
+      // if (filters.categoria && filters.categoria !== 'all') {
+      //   query = query.eq('categoria', filters.categoria);
+      // }
 
       const { data, error } = await query;
 
@@ -113,6 +124,12 @@ export const useSupabase = () => {
         console.log('🔍 Aplicando filtro de período:', filters.periodo);
         query = query.eq('ano_mes', filters.periodo);
       }
+
+      // Temporariamente desabilitado até a coluna categoria ser criada no banco
+      // if (filters.categoria && filters.categoria !== 'all') {
+      //   console.log('🔍 Aplicando filtro de categoria:', filters.categoria);
+      //   query = query.eq('categoria', filters.categoria);
+      // }
 
       console.log('🔍 Executando query...');
       const { data, error } = await query;
@@ -179,6 +196,11 @@ export const useSupabase = () => {
         query = query.eq('ano_mes', filters.periodo);
       }
 
+      // Temporariamente desabilitado até a coluna categoria ser criada no banco
+      // if (filters.categoria && filters.categoria !== 'all') {
+      //   query = query.eq('categoria', filters.categoria);
+      // }
+
       const { data, error } = await query;
 
       if (error) throw error;
@@ -214,6 +236,11 @@ export const useSupabase = () => {
         query = query.eq('ano_mes', filters.periodo);
       }
 
+      // Temporariamente desabilitado até a coluna categoria ser criada no banco
+      // if (filters.categoria && filters.categoria !== 'all') {
+      //   query = query.eq('categoria', filters.categoria);
+      // }
+
       const { data, error } = await query;
 
       if (error) throw error;
@@ -248,6 +275,11 @@ export const useSupabase = () => {
       if (filters.periodo && filters.periodo !== 'all') {
         query = query.eq('ano_mes', filters.periodo);
       }
+
+      // Temporariamente desabilitado até a coluna categoria ser criada no banco
+      // if (filters.categoria && filters.categoria !== 'all') {
+      //   query = query.eq('categoria', filters.categoria);
+      // }
 
       if (filters.user_id && filters.user_id !== 'all') {
         query = query.eq('user_id', filters.user_id);

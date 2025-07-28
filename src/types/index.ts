@@ -21,6 +21,7 @@ export interface Faturamento {
   percentual_custo: number;
   valor_lucro: number;
   percentual_lucro: number;
+  categoria?: string;
   created_at: string;
   updated_at: string;
   unidades?: Unidade;
@@ -90,6 +91,7 @@ export interface Estoque2 {
   percentual_suprida_qtd: number;
   compra_confirmada: number;
   encomenda: number;
+  categoria?: string;
   created_at: string;
   updated_at: string;
   unidades?: Unidade;
@@ -142,6 +144,7 @@ export interface Colaborador {
   percentual_custo: number;
   valor_lucro: number;
   percentual_lucro: number;
+  categoria?: string;
   created_at: string;
   updated_at: string;
   unidades?: Unidade;

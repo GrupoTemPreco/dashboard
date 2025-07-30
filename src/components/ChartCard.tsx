@@ -22,7 +22,7 @@ export interface ChartCardProps {
     }[];
   };
   onBarClick?: (label: string) => void;
-  formatType?: 'currency' | 'number' | 'days';
+  formatType?: 'currency' | 'number' | 'days' | 'percentage';
   getTooltipExtra?: (label: string) => string | undefined;
   onHover?: (datasetIndex: number | null) => void;
 }
@@ -57,6 +57,8 @@ const ChartCard: React.FC<ChartCardProps> = ({ title, type, chartData, onBarClic
                 label = `${value.toLocaleString('pt-BR')} dias`;
               } else if (formatType === 'number') {
                 label = value.toLocaleString('pt-BR');
+              } else if (formatType === 'percentage') {
+                label = `${value.toFixed(1)}%`;
               } else {
                 label = value.toLocaleString('pt-BR', {
                   style: 'currency',
@@ -110,6 +112,8 @@ const ChartCard: React.FC<ChartCardProps> = ({ title, type, chartData, onBarClic
               return `${Number(value).toLocaleString('pt-BR')} dias`;
             } else if (formatType === 'number') {
               return Number(value).toLocaleString('pt-BR');
+            } else if (formatType === 'percentage') {
+              return `${Number(value).toFixed(1)}%`;
             } else {
               // currency (padrão)
               return Number(value).toLocaleString('pt-BR', {

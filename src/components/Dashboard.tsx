@@ -2434,6 +2434,7 @@ const Dashboard: React.FC = () => {
                       <ChartCard
                         title=""
                         type="line"
+                        formatType="percentage"
                         onHover={setHoveredCmvIndex}
                         chartData={(() => {
                           // Cores para as lojas - Paleta mais distinta e contrastante

@@ -148,7 +148,15 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
       'fornecedor últ. compra', 'média venda diária', 'fabricante', 'qtd. demanda',
       'est. mín', 'origem est. mín.', 'dia estocagem', 'custo médio',
       'curva valor', 'custo x necessidade', 'custo x estoque', 'ruptura venda',
-      'necessidade qtd', 'percentual suprida qtd', 'compra confirmada', 'encomenda'
+      'necessidade qtd', 'percentual suprida qtd', 'compra confirmada', 'encomenda',
+      'falta:', 'ruptura', 'encomenda', 'tipo necessidade', 'un. neg.', 'conf. comprar',
+      'média venda mensal', 'estoque (dias)', 'classificação principal', 'preço venda médio',
+      'estoque final (dias)', 'últ. venda (dias)', 'transf. conf.', 'comprar (dias)',
+      'necessidade (dias)', 'últ. compra (dias)', 'apelido un. neg.', 'fornecedor últ. compra',
+      'média venda diária', 'fabricante', 'qtd. demanda', 'est. mín', 'origem est. mín.',
+      'dia estocagem', 'custo', 'custo médio', 'curva valor', 'custo x necessidade',
+      'custo x estoque', 'ruptura venda', 'necessidade qtd', 'percentual suprida qtd',
+      'compra confirmada', 'encomenda'
     ];
 
     const hasEstoqueContent = estoqueIndicators.some(indicator =>
@@ -165,19 +173,19 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
       allValuesString.includes(indicator)
     );
 
-    // PRIORIZAR COLABORADORES se houver indicadores específicos
-    if (hasColaboradoresContent) {
-      console.log('👥 Planilha detectada como COLABORADORES');
-      console.log('🔍 Indicadores encontrados:', colaboradoresIndicators.filter(indicator => allValuesString.includes(indicator)));
-      return 'colaboradores';
-    }
-    // Se não tem indicadores específicos de colaboradores, verificar estoque
-    else if (hasEstoqueContent) {
+    // PRIORIZAR ESTOQUE se houver indicadores específicos de produtos
+    if (hasEstoqueContent) {
       console.log('📦 Planilha detectada como ESTOQUE');
       console.log('🔍 Indicadores encontrados:', estoqueIndicators.filter(indicator => allValuesString.includes(indicator)));
       return 'estoque';
     }
-    // Se não tem indicadores específicos de estoque, verificar faturamento
+    // Se não tem indicadores específicos de estoque, verificar colaboradores
+    else if (hasColaboradoresContent) {
+      console.log('👥 Planilha detectada como COLABORADORES');
+      console.log('🔍 Indicadores encontrados:', colaboradoresIndicators.filter(indicator => allValuesString.includes(indicator)));
+      return 'colaboradores';
+    }
+    // Se não tem indicadores específicos de colaboradores, verificar faturamento
     else if (hasFaturamentoContent) {
       console.log('💰 Planilha detectada como FATURAMENTO');
       console.log('🔍 Indicadores encontrados:', faturamentoIndicators.filter(indicator => allValuesString.includes(indicator)));
@@ -387,7 +395,7 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
     let headerRow: any = null;
 
     // Procurar pela linha que contém os cabeçalhos
-    for (let i = 0; i < Math.min(10, data.length); i++) {
+    for (let i = 0; i < Math.min(20, data.length); i++) {
       const row = data[i];
       const rowValues = Object.values(row).map(v => v?.toString().toLowerCase() || '');
       const rowString = rowValues.join(' ');
@@ -397,7 +405,15 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
       // Verificar se esta linha contém cabeçalhos de estoque
       const hasEstoqueHeaders = [
         'un. neg.', 'produto', 'estoque', 'curva', 'preço', 'ação',
-        'media', 'classific', 'ult.', 'venda', 'compra', 'final', 'dias'
+        'media', 'classific', 'ult.', 'venda', 'compra', 'final', 'dias',
+        'tipo necessidade', 'conf. comprar', 'média venda mensal', 'estoque (dias)',
+        'classificação principal', 'preço venda médio', 'estoque final (dias)',
+        'últ. venda (dias)', 'transf. conf.', 'comprar (dias)', 'necessidade (dias)',
+        'últ. compra (dias)', 'apelido un. neg.', 'fornecedor últ. compra',
+        'média venda diária', 'fabricante', 'qtd. demanda', 'est. mín',
+        'origem est. mín.', 'dia estocagem', 'custo', 'custo médio', 'curva valor',
+        'custo x necessidade', 'custo x estoque', 'ruptura venda', 'necessidade qtd',
+        'percentual suprida qtd', 'compra confirmada', 'encomenda'
       ].some(header => rowString.includes(header));
 
       if (hasEstoqueHeaders) {
@@ -430,31 +446,31 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
       } else if (headerValue.includes('produto')) {
         columnMapping['Produto'] = key;
         console.log(`✅ Mapeado 'Produto' para coluna ${key}`);
-      } else if (headerValue.includes('estoque') && !headerValue.includes('final') && !headerValue.includes('classific')) {
+      } else if (headerValue.includes('estoque') && !headerValue.includes('final') && !headerValue.includes('classific') && !headerValue.includes('conf.')) {
         columnMapping['Estoque'] = key;
         console.log(`✅ Mapeado 'Estoque' para coluna ${key}`);
-      } else if (headerValue.includes('curva')) {
+      } else if (headerValue.includes('curva') && !headerValue.includes('qtd') && !headerValue.includes('valor')) {
         columnMapping['Curva'] = key;
         console.log(`✅ Mapeado 'Curva' para coluna ${key}`);
-      } else if (headerValue.includes('media') && headerValue.includes('venda')) {
+      } else if (headerValue.includes('media') && headerValue.includes('venda') && !headerValue.includes('mensal') && !headerValue.includes('diaria')) {
         columnMapping['Media Venda'] = key;
         console.log(`✅ Mapeado 'Media Venda' para coluna ${key}`);
       } else if (headerValue.includes('media') && !headerValue.includes('venda')) {
         columnMapping['Media'] = key;
         console.log(`✅ Mapeado 'Media' para coluna ${key}`);
-      } else if (headerValue.includes('classific') || headerValue.includes('dias')) {
+      } else if (headerValue.includes('classific') && !headerValue.includes('principal')) {
         columnMapping['Estoque Classific'] = key;
         console.log(`✅ Mapeado 'Estoque Classific' para coluna ${key}`);
       } else if (headerValue.includes('preço') || headerValue.includes('ação')) {
         columnMapping['Preço'] = key;
         console.log(`✅ Mapeado 'Preço' para coluna ${key}`);
-      } else if (headerValue.includes('estoque') && headerValue.includes('final')) {
+      } else if (headerValue.includes('estoque') && headerValue.includes('final') && !headerValue.includes('dias')) {
         columnMapping['Estoque Final'] = key;
         console.log(`✅ Mapeado 'Estoque Final' para coluna ${key}`);
-      } else if (headerValue.includes('ult.') && headerValue.includes('venda')) {
+      } else if (headerValue.includes('ult.') && headerValue.includes('venda') && !headerValue.includes('dias')) {
         columnMapping['Ult. Venda'] = key;
         console.log(`✅ Mapeado 'Ult. Venda' para coluna ${key}`);
-      } else if (headerValue.includes('ult.') && headerValue.includes('compra')) {
+      } else if (headerValue.includes('ult.') && headerValue.includes('compra') && !headerValue.includes('dias')) {
         columnMapping['Ult. Compra'] = key;
         console.log(`✅ Mapeado 'Ult. Compra' para coluna ${key}`);
       } else if (headerValue.includes('dia') && headerValue.includes('estocad')) {
@@ -478,6 +494,8 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
         columnMapping['Media Venda Mensal'] = key;
       } else if (headerValue.includes('estoque') && headerValue.includes('final') && headerValue.includes('dias')) {
         columnMapping['Estoque Final Dias'] = key;
+      } else if (headerValue.includes('estoque') && headerValue.includes('dias') && !headerValue.includes('final')) {
+        columnMapping['Dia Estocad'] = key;
       } else if (headerValue.includes('classificacao') && headerValue.includes('principal')) {
         columnMapping['Classificacao Principal'] = key;
       } else if (headerValue.includes('preco') && headerValue.includes('venda') && headerValue.includes('medio')) {
@@ -544,10 +562,14 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
       const hasSystemHeader = rowValues.some(value =>
         value && value.toString().includes('Unidade de Negócio:') ||
         value && value.toString().includes('Usuário:') ||
-        value && value.toString().includes('Impressão:')
+        value && value.toString().includes('Impressão:') ||
+        value && value.toString().includes('a7 pharma') ||
+        value && value.toString().includes('página') ||
+        value && value.toString().includes('desenvolvimento de software')
       );
 
       if (hasSystemHeader) {
+        console.log(`📋 Pulando linha ${i + 1} - cabeçalho do sistema`);
         continue;
       }
 
@@ -560,12 +582,40 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
         const match = unitCodeMatch.toString().match(/Cód\. Un\. Neg\.:\s*(\d+)/);
         if (match) {
           currentUnitCode = match[1];
+          console.log(`🏢 Unidade detectada: ${currentUnitCode}`);
         }
+        continue;
+      }
+
+      // Pular linhas que são cabeçalhos de tabela
+      const isTableHeader = rowValues.some(value =>
+        value && value.toString().includes('tipo necessidade') ||
+        value && value.toString().includes('un. neg.') ||
+        value && value.toString().includes('produto') ||
+        value && value.toString().includes('estoque')
+      );
+
+      if (isTableHeader && i > headerRowIndex) {
+        console.log(`📋 Pulando linha ${i + 1} - cabeçalho de tabela`);
         continue;
       }
 
       // Mapear dados usando o mapeamento de colunas
       const estoqueItem: EstoqueData = {};
+
+      // Verificar se a linha tem dados válidos (pelo menos produto e estoque)
+      const hasValidData = Object.values(row).some(value =>
+        value && value.toString().trim() !== '' &&
+        !value.toString().includes('tipo necessidade') &&
+        !value.toString().includes('un. neg.') &&
+        !value.toString().includes('produto') &&
+        !value.toString().includes('estoque')
+      );
+
+      if (!hasValidData) {
+        console.log(`📋 Pulando linha ${i + 1} - sem dados válidos`);
+        continue;
+      }
 
       Object.entries(columnMapping).forEach(([field, columnKey]) => {
         const value = row[columnKey];
@@ -1021,7 +1071,7 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
         fabricante: item['Curva'] || 'N/A',
         quantidade: item['Estoque'] || 0,
         valor_estoque: item['Preço'] || 0, // Preço unitário apenas
-        dias_estoque: item['Estoque Classific'] || 0,
+        dias_estoque: item['Estoque Final Dias'] || item['Dia Estocad'] || item['Estoque Classific'] || 0,
         data_atualizacao: dataEstocagem,
         data_estocagem: dataEstocagem,
         ano_mes: anoMes,
@@ -1055,6 +1105,14 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
         compra_confirmada: item['Compra Confirmada'] || 0,
         encomenda: item['Encomenda'] || 0
       };
+
+      // Log para debug dos campos de dias no estoque
+      console.log(`🔍 Debug - Dias no estoque para ${item['Produto']}:`, {
+        'Estoque Final Dias': item['Estoque Final Dias'],
+        'Dia Estocad': item['Dia Estocad'],
+        'Estoque Classific': item['Estoque Classific'],
+        'Valor Final': item['Estoque Final Dias'] || item['Dia Estocad'] || item['Estoque Classific'] || 0
+      });
 
       estoqueToInsert.push(estoqueItem);
     }

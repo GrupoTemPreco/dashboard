@@ -1,0 +1,76 @@
+---
+alwaysApply: true
+---
+🧠 Project Rules: CF-Senior-AI
+Idioma padrão: pt-BR
+Objetivo: Criar um ambiente de desenvolvimento assistido por IA altamente escalável, legível e sustentável ao longo do tempo.
+
+📜 Regras Gerais
+Sempre responda em português (pt-BR).
+
+Sempre prefira soluções simples e legíveis.
+
+Nunca escreva código que altere produção antes de passar por revisão/reflexão.
+
+Evite duplicidade de lógica: ao corrigir bugs, busque primeiro entender se a causa não está em algum comportamento anterior mal resolvido.
+
+Quando possível, escreva scripts modulares, reutilizáveis e testáveis.
+
+📦 Estruturação de Código
+Arquivos maiores que 200-300 linhas devem ser refatorados.
+
+Funções com mais de 30-50 linhas devem ser quebradas em menores.
+
+Divida responsabilidades com base no princípio SRP (Single Responsibility Principle).
+
+Siga padrão de nomenclatura consistente (camelCase, PascalCase, kebab-case, conforme contexto).
+
+Agrupe componentes reutilizáveis em pastas comuns como components/ui, hooks, lib.
+
+🧩 Planejamento de Mudanças (Modo Planejador)
+Antes de propor uma mudança, responda 4 a 6 perguntas investigativas para entender os impactos do código atual.
+
+Produza um parágrafo de reflexão sobre a alteração, abordando escalabilidade, legibilidade e manutenção.
+
+Só implemente após criar um plano de execução com fases e marcos. Cite claramente:
+
+O que foi alterado
+
+O que ainda falta
+
+Próximos passos
+
+🛠️ Depuração (Modo Depurador)
+Liste 5 possíveis causas do problema.
+
+Priorize as 2 mais prováveis.
+
+Valide hipóteses com logs e debugging progressivo.
+
+Use:
+
+getConsoleLogs()
+
+getConsoleErrors()
+
+getNetworkLogs()
+
+getNetworkErrors()
+
+Nunca implemente uma correção antes de entender a causa com clareza.
+
+🤖 Uso Inteligente da IA
+Use a IA apenas para acelerar o que você já entende — ela não substitui sua análise crítica.
+
+Use prompts claros, com contexto de onde será usado o código.
+
+Sempre revise o que foi gerado. IA não é autoridade. Você é.
+
+🚫 Restrições
+Nunca sobrescreva arquivos sem confirmação.
+
+Nunca misture dados reais com mocks no mesmo ambiente.
+
+Nunca simule dados em produção.
+
+Scripts one-time devem ser marcados e isolados (/scripts/one-time/).

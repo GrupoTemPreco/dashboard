@@ -104,6 +104,7 @@ const Dashboard: React.FC = () => {
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
   const [showImportModal, setShowImportModal] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
+  // @ts-expect-error
   const [estoqueViewType, setEstoqueViewType] = useState<'bars' | 'list'>('bars');
   const [activeDashboard, setActiveDashboard] = useState<'geral' | 'colaboradores'>('geral');
   const [selectedCollaborator, setSelectedCollaborator] = useState<string | null>(null);
@@ -111,6 +112,7 @@ const Dashboard: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
   const [searchEstoque, setSearchEstoque] = useState('');
+  const [debouncedSearchEstoque, setDebouncedSearchEstoque] = useState('');
   const [showFaturamentoChart, setShowFaturamentoChart] = useState(false);
   const [showCMVChart, setShowCMVChart] = useState(false);
   const [cmvModalPeriodo, setCmvModalPeriodo] = useState('all');
@@ -129,6 +131,7 @@ const Dashboard: React.FC = () => {
   // Estado para alternar entre Ticket Médio e Quantidade de Vendas (removido pois não é usado)
   // const [showQuantidadeVendas, setShowQuantidadeVendas] = useState(false);
   const [showColaboradoresModal, setShowColaboradoresModal] = useState(false);
+  // @ts-expect-error
   const [colabModalPeriodo, setColabModalPeriodo] = useState('all');
   const [colabModalLojasSelecionadas, setColabModalLojasSelecionadas] = useState<string[]>([]);
   const [dropdownColabLojasAberto, setDropdownColabLojasAberto] = useState(false);
@@ -143,7 +146,9 @@ const Dashboard: React.FC = () => {
   const [showQuantidadeVendasModalView, setShowQuantidadeVendasModalView] = useState(false);
   const [showDiasEstoqueModal, setShowDiasEstoqueModal] = useState(false);
   const [showMaiorTempoEstoqueModal, setShowMaiorTempoEstoqueModal] = useState(false);
+  // @ts-expect-error
   const [vendasProdutoSelecionado, setVendasProdutoSelecionado] = useState<VendaItem[]>([]);
+  // @ts-expect-error
   const [loadingVendasProduto, setLoadingVendasProduto] = useState(false);
   
   // Estados para o modal de detalhes do produto
@@ -154,6 +159,21 @@ const Dashboard: React.FC = () => {
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [helpModalType, setHelpModalType] = useState<'faturamento' | 'cmv' | 'margemBruta' | 'colaboradores' | 'diasEstoque' | 'estoque' | 'maiorTempoEstoque' | 'totalColaboradores' | 'ticketMedio'>('faturamento');
 
+  // Estados para paginação centralizada
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(200);
+  const [estoquePagination, setEstoquePagination] = useState<{
+    totalCount: number;
+    totalPages: number;
+    currentPage: number;
+    pageSize: number;
+  }>({
+    totalCount: 0,
+    totalPages: 1,
+    currentPage: 1,
+    pageSize: 200
+  });
+
   // Estados para controle de hover nas legendas
   const [hoveredFaturamentoIndex, setHoveredFaturamentoIndex] = useState<number | null>(null);
   const [hoveredCmvIndex, setHoveredCmvIndex] = useState<number | null>(null);
@@ -161,6 +181,25 @@ const Dashboard: React.FC = () => {
   const [hoveredColaboradoresIndex, setHoveredColaboradoresIndex] = useState<number | null>(null);
 
   const { loading, error, fetchFaturamento, fetchEstoque, fetchUnidades, fetchCMV, fetchColaboradores } = useSupabase();
+
+  // Componente de Paginação
+  const TotalItemsDisplay = ({ totalItems }: { totalItems: number }) => {
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: '12px 16px',
+        backgroundColor: '#f8fafc',
+        borderTop: '1px solid #e2e8f0',
+        fontSize: '14px',
+        color: '#64748b',
+        fontWeight: '500'
+      }}>
+        <span>📊 Total de itens: {totalItems.toLocaleString('pt-BR')}</span>
+      </div>
+    );
+  };
 
   // Paleta de cores mais distinta e contrastante para os gráficos
   const getChartColors = () => [
@@ -220,13 +259,27 @@ const Dashboard: React.FC = () => {
   // Estados para dados completos dos modais (sem filtros)
   const [modalFaturamentoData, setModalFaturamentoData] = useState<Faturamento[]>([]);
   const [modalCmvData, setModalCmvData] = useState<Faturamento[]>([]);
+  // @ts-expect-error
   const [modalColaboradoresData, setModalColaboradoresData] = useState<Colaborador[]>([]);
 
   const loadData = useCallback(async () => {
     console.log('🔄 Carregando dados com filtros:', filters);
-    const [faturamentoData, estoqueData, unidadesData, , colaboradoresData] = await Promise.all([
+    console.log('🔍 Filtro unidade no loadData:', filters.unidade);
+    console.log('🔍 Tipo do filtro unidade no loadData:', typeof filters.unidade);
+    
+    // Adicionar parâmetros de paginação aos filtros
+    const filtersWithPagination = {
+      ...filters,
+      page: currentPage,
+      pageSize: itemsPerPage,
+      search: debouncedSearchEstoque
+    };
+    
+    console.log('🔍 FiltersWithPagination:', filtersWithPagination);
+    
+    const [faturamentoData, estoqueResult, unidadesData, , colaboradoresData] = await Promise.all([
       fetchFaturamento(filters),
-      fetchEstoque(filters), // Usar fetchEstoque com filtros
+      fetchEstoque(filtersWithPagination), // Usar fetchEstoque com paginação
       fetchUnidades(),
       fetchCMV(filters),
       fetchColaboradores(filters)
@@ -235,16 +288,50 @@ const Dashboard: React.FC = () => {
     // --- FILTRO DE CATEGORIA ---
     // Filtro de categoria implementado - os dados já vêm filtrados do backend
     const faturamentoFiltrado = faturamentoData;
-    const estoqueFiltrado = estoqueData;
+    const estoqueFiltrado = estoqueResult.data || [];
     const colaboradoresFiltrado = colaboradoresData;
     // --- FIM FILTRO DE CATEGORIA ---
 
     console.log('📊 Dados carregados - faturamento:', faturamentoFiltrado.length, 'estoque:', estoqueFiltrado.length);
+    console.log('📊 Paginação - página atual:', estoqueResult.currentPage, 'de', estoqueResult.totalPages, 'total:', estoqueResult.totalCount);
+    console.log('🔍 Primeiros 3 itens do estoque filtrado:', estoqueFiltrado.slice(0, 3).map(item => ({
+      id: item.id,
+      produto_nome: item.produto_nome,
+      unidade_id: item.unidade_id,
+      quantidade: item.quantidade
+    })));
+    
     setFaturamento(faturamentoFiltrado);
     setEstoque(estoqueFiltrado);
     setUnidades(unidadesData);
     setColaboradores(colaboradoresFiltrado);
-  }, [filters, fetchFaturamento, fetchEstoque, fetchUnidades, fetchCMV, fetchColaboradores]);
+    
+    // Atualizar informações de paginação se necessário
+    if (estoqueResult.totalCount > 0) {
+      console.log('📊 Atualizando informações de paginação:', {
+        totalCount: estoqueResult.totalCount,
+        totalPages: estoqueResult.totalPages,
+        currentPage: estoqueResult.currentPage,
+        pageSize: estoqueResult.pageSize
+      });
+      
+      setEstoquePagination({
+        totalCount: estoqueResult.totalCount,
+        totalPages: estoqueResult.totalPages,
+        currentPage: estoqueResult.currentPage,
+        pageSize: estoqueResult.pageSize
+      });
+    }
+  }, [filters, currentPage, itemsPerPage, debouncedSearchEstoque, fetchFaturamento, fetchEstoque, fetchUnidades, fetchCMV, fetchColaboradores]);
+
+  // Debounce para a busca
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchEstoque(searchEstoque);
+    }, 1000); // 1 segundo de delay para terminar de escrever
+
+    return () => clearTimeout(timer);
+  }, [searchEstoque]);
 
   useEffect(() => {
     loadData();
@@ -600,6 +687,7 @@ const Dashboard: React.FC = () => {
   // (Movido para depois da declaração de availablePeriods)
 
   // Função para alternar visualização do estoque
+  // @ts-expect-error
   const toggleEstoqueView = () => {
     setEstoqueViewType(prev => prev === 'bars' ? 'list' : 'bars');
   };
@@ -613,6 +701,90 @@ const Dashboard: React.FC = () => {
   const openHelpModal = (type: 'faturamento' | 'cmv' | 'margemBruta' | 'colaboradores' | 'diasEstoque' | 'estoque' | 'maiorTempoEstoque' | 'totalColaboradores' | 'ticketMedio') => {
     setHelpModalType(type);
     setShowHelpModal(true);
+  };
+
+  // Funções de paginação
+  const handlePageChange = (newPage: number) => {
+    console.log('🔄 Mudando para página:', newPage);
+    setCurrentPage(newPage);
+    // O loadData será chamado automaticamente pelo useEffect que depende de currentPage
+  };
+
+  const handleItemsPerPageChange = (newItemsPerPage: number) => {
+    console.log('🔄 Mudando itens por página para:', newItemsPerPage);
+    setItemsPerPage(newItemsPerPage);
+    setCurrentPage(1);
+    // O loadData será chamado automaticamente pelo useEffect que depende de itemsPerPage
+  };
+
+  // Filtro para Valor de Estoque
+  const estoqueComValor = estoque
+    .filter(item =>
+      (!selectedMonth || item.ano_mes === selectedMonth)
+    )
+    .map(item => ({
+      id: item.id,
+      unidade_id: item.unidade_id,
+      produto_nome: item.produto_nome,
+      fabricante: item.fabricante,
+      quantidade: item.quantidade,
+      valor_estoque: item.valor_estoque,
+      dias_estoque: item.dias_estoque,
+      data_atualizacao: item.data_atualizacao,
+      data_estocagem: item.data_estocagem,
+      ano_mes: item.ano_mes,
+      necessidade: item.necessidade,
+      estoque_confirmado: item.estoque_confirmado,
+      comprar: item.comprar,
+      curva_qtd: item.curva_qtd,
+      media_venda_mensal: item.media_venda_mensal,
+      estoque_final_dias: item.estoque_final_dias,
+      classificacao_principal: item.classificacao_principal,
+      preco_venda_medio: item.preco_venda_medio,
+      ultima_venda_dias: item.ultima_venda_dias,
+      transferencia_confirmada: item.transferencia_confirmada,
+      comprar_dias: item.comprar_dias,
+      necessidade_dias: item.necessidade_dias,
+      ultima_compra_dias: item.ultima_compra_dias,
+      apelido_unidade: item.apelido_unidade,
+      fornecedor_ultima_compra: item.fornecedor_ultima_compra,
+      media_venda_diaria: item.media_venda_diaria,
+      qtd_demanda: item.qtd_demanda,
+      estoque_minimo: item.estoque_minimo,
+      origem_estoque_minimo: item.origem_estoque_minimo,
+      custo: item.custo,
+      custo_medio: item.custo_medio,
+      curva_valor: item.curva_valor,
+      custo_x_necessidade: item.custo_x_necessidade,
+      custo_x_estoque: item.custo_x_estoque,
+      ruptura_venda: item.ruptura_venda,
+      necessidade_qtd: item.necessidade_qtd,
+      percentual_suprida_qtd: item.percentual_suprida_qtd,
+      compra_confirmada: item.compra_confirmada,
+      encomenda: item.encomenda,
+      created_at: item.created_at,
+      updated_at: item.updated_at,
+      unidades: item.unidades,
+      valorTotalItem: (item.quantidade || 0) * (item.valor_estoque || 0)
+    }));
+
+  // Função para obter estoque filtrado e paginado (usando dados do servidor)
+  const getEstoqueFiltradoEPaginado = () => {
+    // Os dados já vêm filtrados do servidor conforme filters.unidade
+    // Não aplicar filtros adicionais no cliente para evitar conflitos
+    let estoqueFiltrado = estoqueComValor;
+    
+    // Usar o total real do banco do estado de paginação
+    const totalItems = estoquePagination.totalCount > 0 ? estoquePagination.totalCount : estoqueFiltrado.length;
+    const totalPages = estoquePagination.totalPages > 0 ? estoquePagination.totalPages : Math.ceil(totalItems / itemsPerPage);
+    
+    // Retornar dados já paginados do servidor (não fazer paginação local)
+    return {
+      items: estoqueFiltrado, // Dados já vêm paginados do servidor
+      totalItems,
+      totalPages: Math.max(totalPages, 1),
+      currentPage: estoquePagination.currentPage || currentPage
+    };
   };
 
   // Função para buscar vendas de um produto específico
@@ -1489,57 +1661,6 @@ const Dashboard: React.FC = () => {
     return produtosRankeados;
   };
 
-  // Filtro para Valor de Estoque
-  const estoqueComValor = estoque
-    .filter(item =>
-      (filters.unidade === 'all' || String(item.unidade_id) === String(filters.unidade)) &&
-      (!selectedMonth || item.ano_mes === selectedMonth)
-    )
-    .map(item => ({
-      id: item.id,
-      unidade_id: item.unidade_id,
-      produto_nome: item.produto_nome,
-      fabricante: item.fabricante,
-      quantidade: item.quantidade,
-      valor_estoque: item.valor_estoque,
-      dias_estoque: item.dias_estoque,
-      data_atualizacao: item.data_atualizacao,
-      data_estocagem: item.data_estocagem,
-      ano_mes: item.ano_mes,
-      necessidade: item.necessidade,
-      estoque_confirmado: item.estoque_confirmado,
-      comprar: item.comprar,
-      curva_qtd: item.curva_qtd,
-      media_venda_mensal: item.media_venda_mensal,
-      estoque_final_dias: item.estoque_final_dias,
-      classificacao_principal: item.classificacao_principal,
-      preco_venda_medio: item.preco_venda_medio,
-      ultima_venda_dias: item.ultima_venda_dias,
-      transferencia_confirmada: item.transferencia_confirmada,
-      comprar_dias: item.comprar_dias,
-      necessidade_dias: item.necessidade_dias,
-      ultima_compra_dias: item.ultima_compra_dias,
-      apelido_unidade: item.apelido_unidade,
-      fornecedor_ultima_compra: item.fornecedor_ultima_compra,
-      media_venda_diaria: item.media_venda_diaria,
-      qtd_demanda: item.qtd_demanda,
-      estoque_minimo: item.estoque_minimo,
-      origem_estoque_minimo: item.origem_estoque_minimo,
-      custo: item.custo,
-      custo_medio: item.custo_medio,
-      curva_valor: item.curva_valor,
-      custo_x_necessidade: item.custo_x_necessidade,
-      custo_x_estoque: item.custo_x_estoque,
-      ruptura_venda: item.ruptura_venda,
-      necessidade_qtd: item.necessidade_qtd,
-      percentual_suprida_qtd: item.percentual_suprida_qtd,
-      compra_confirmada: item.compra_confirmada,
-      encomenda: item.encomenda,
-      created_at: item.created_at,
-      updated_at: item.updated_at,
-      unidades: item.unidades,
-      valorTotalItem: (item.quantidade || 0) * (item.valor_estoque || 0)
-    }));
   // Filtro para Valor de Estoque (removido pois não é usado)
   // const estoqueFiltradoPorValor = estoqueComValor.filter(item => {
   //   const busca = searchValue.toLowerCase();
@@ -2719,7 +2840,7 @@ const Dashboard: React.FC = () => {
                       <ChartCard
                         title=""
                         type="bar"
-                        chartData={chartData.diasEstoqueChartData}
+                        chartData={chartData.diasEstoqueChartData as any}
                         formatType="days"
                       />
                     </div>
@@ -3239,98 +3360,117 @@ const Dashboard: React.FC = () => {
                       {/* Visualização em barras (valor) */}
                       <div className="product-list">
                         {(() => {
-                          // Filtrar estoque conforme lojas selecionadas do modal
-                          let estoqueFiltrado = estoqueComValor;
-                          if (getLojasSelecionadas('colaboradores').length > 0 && getLojasSelecionadas('colaboradores').length !== unidades.length) {
-                            estoqueFiltrado = estoqueFiltrado.filter(item => getLojasSelecionadas('colaboradores').includes(String(item.unidade_id)));
+                          const { items: estoquePaginado, currentPage: currentPageAjustada } = getEstoqueFiltradoEPaginado();
+                          
+                          // Ajustar página atual se necessário
+                          if (currentPageAjustada !== currentPage) {
+                            setCurrentPage(currentPageAjustada);
                           }
-                          // Aplicar filtro de busca
-                          const estoqueFiltradoPorBusca = estoqueFiltrado.filter(item => {
-                            const busca = searchEstoque.toLowerCase();
+
+                          return estoquePaginado.map((item) => {
+                            const maxValor = Math.max(...estoquePaginado.map((e: any) => (e.quantidade || 0) * (e.valor_estoque || 0)));
+                            const percentualBarra = maxValor > 0 ? (item.valorTotalItem / maxValor) * 100 : 0;
+
                             return (
-                              item.produto_nome?.toLowerCase().includes(busca) ||
-                              Math.round(item.valorTotalItem).toLocaleString('pt-BR').includes(busca)
-                            );
-                          });
-
-                          return estoqueFiltradoPorBusca
-                            .sort((a, b) => b.valorTotalItem - a.valorTotalItem) // Ordenar do maior para o menor
-                            .map((item) => {
-                              const maxValor = Math.max(...estoqueFiltrado.map(e => (e.quantidade || 0) * (e.valor_estoque || 0)));
-                              const percentualBarra = maxValor > 0 ? (item.valorTotalItem / maxValor) * 100 : 0;
-
-                              return (
-                                <div
-                                  key={item.id}
-                                  className={`product-bar-item${selectedProduct === item.produto_nome ? ' active' : ''}`}
-                                  title={`${item.produto_nome || 'Produto'}
+                              <div
+                                key={item.id}
+                                className={`product-bar-item${selectedProduct === item.produto_nome ? ' active' : ''}`}
+                                title={`${item.produto_nome || 'Produto'}
 Quantidade: ${item.quantidade || 0}
 Preço Unitário: R$ ${(item.valor_estoque || 0).toLocaleString('pt-BR')}
-                                  Valor Total: R$ ${Math.round(item.valorTotalItem).toLocaleString('pt-BR')}`}
-                                  onClick={() => {
-                                    setSelectedProduct(item.produto_nome);
-                                    openProdutoDetalhesModal(item);
-                                  }}
-                                  style={{
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    padding: '8px 0',
-                                    borderBottom: '1px solid #f3f4f6',
-                                    transition: 'background-color 0.2s ease'
-                                  }}
-                                >
-                                  <div style={{ display: 'flex', alignItems: 'center', width: '100%', gap: '8px' }}>
-                                    <div style={{
-                                      fontSize: '12px',
-                                      fontWeight: '500',
-                                      color: '#111827',
-                                      flex: '1',
-                                      minWidth: '0',
-                                      overflow: 'hidden',
-                                      textOverflow: 'ellipsis',
-                                      whiteSpace: 'nowrap'
-                                    }}>
-                                      {item.produto_nome || 'Produto'} ({item.unidade_id || 'N/A'})
-                                    </div>
-                                    <div style={{
-                                      position: 'relative',
-                                      height: '20px',
-                                      backgroundColor: '#f8f9fa',
-                                      borderRadius: '4px',
-                                      overflow: 'hidden',
-                                      flex: '2',
-                                      minWidth: '100px'
-                                    }}>
-                                      <div
-                                        style={{
-                                          width: `${Math.max(percentualBarra, 5)}%`,
-                                          height: '100%',
-                                          backgroundColor: '#dc2626',
-                                          borderRadius: '4px',
-                                          transition: 'all 0.3s ease'
-                                        }}
-                                      ></div>
-                                    </div>
-                                    <div style={{
-                                      fontSize: '11px',
-                                      fontWeight: '600',
-                                      color: '#111827',
-                                      backgroundColor: 'white',
-                                      padding: '2px 4px',
-                                      borderRadius: '3px',
-                                      boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
-                                      minWidth: '80px',
-                                      textAlign: 'right'
-                                    }}>
-                                      R$ {Math.round(item.valorTotalItem).toLocaleString('pt-BR')}
-                                    </div>
+                                Valor Total: R$ ${Math.round(item.valorTotalItem).toLocaleString('pt-BR')}`}
+                                onClick={() => {
+                                  setSelectedProduct(item.produto_nome);
+                                  openProdutoDetalhesModal(item);
+                                }}
+                                style={{
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  padding: '8px 0',
+                                  borderBottom: '1px solid #f3f4f6',
+                                  transition: 'background-color 0.2s ease'
+                                }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', width: '100%', gap: '8px' }}>
+                                  <div style={{
+                                    fontSize: '12px',
+                                    fontWeight: '500',
+                                    color: '#111827',
+                                    flex: '1',
+                                    minWidth: '0',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap'
+                                  }}>
+                                    {item.produto_nome || 'Produto'} ({item.unidade_id || 'N/A'})
+                                  </div>
+                                  <div style={{
+                                    position: 'relative',
+                                    height: '20px',
+                                    backgroundColor: '#f8f9fa',
+                                    borderRadius: '4px',
+                                    overflow: 'hidden',
+                                    flex: '2',
+                                    minWidth: '100px'
+                                  }}>
+                                    <div
+                                      style={{
+                                        width: `${Math.max(percentualBarra, 5)}%`,
+                                        height: '100%',
+                                        backgroundColor: '#dc2626',
+                                        borderRadius: '4px',
+                                        transition: 'all 0.3s ease'
+                                      }}
+                                    ></div>
+                                  </div>
+                                  <div style={{
+                                    fontSize: '11px',
+                                    fontWeight: '600',
+                                    color: '#111827',
+                                    backgroundColor: 'white',
+                                    padding: '2px 4px',
+                                    borderRadius: '3px',
+                                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
+                                    minWidth: '80px',
+                                    textAlign: 'right'
+                                  }}>
+                                    R$ {Math.round(item.valorTotalItem).toLocaleString('pt-BR')}
                                   </div>
                                 </div>
-                              );
-                            });
+                              </div>
+                            );
+                          });
                         })()}
                       </div>
+                      
+                      {/* Componente de Paginação */}
+                      {(() => {
+                        const { totalItems, totalPages } = getEstoqueFiltradoEPaginado();
+                        
+                        if (totalPages > 1) {
+                          return (
+                            <div style={{ 
+                              display: 'flex', 
+                              justifyContent: 'center', 
+                              alignItems: 'center', 
+                              padding: '16px',
+                              borderTop: '1px solid #e2e8f0',
+                              backgroundColor: '#f8fafc'
+                            }}>
+                              <TotalItemsDisplay
+                                
+                                
+                                
+                                totalItems={totalItems}
+                                
+                                
+                              />
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -3366,25 +3506,15 @@ Preço Unitário: R$ ${(item.valor_estoque || 0).toLocaleString('pt-BR')}
                       {/* Visualização em barras horizontais com quantidade em destaque */}
                       <div className="product-list">
                         {(() => {
-                          // Filtrar estoque conforme lojas selecionadas do modal
-                          let estoqueFiltrado = estoqueComValor;
-                          if (getLojasSelecionadas('colaboradores').length > 0 && getLojasSelecionadas('colaboradores').length !== unidades.length) {
-                            estoqueFiltrado = estoqueFiltrado.filter(item => getLojasSelecionadas('colaboradores').includes(String(item.unidade_id)));
+                          const { items: estoquePaginado, currentPage: currentPageAjustada } = getEstoqueFiltradoEPaginado();
+                          
+                          // Ajustar página atual se necessário
+                          if (currentPageAjustada !== currentPage) {
+                            setCurrentPage(currentPageAjustada);
                           }
-                          // Aplicar filtro de busca
-                          const estoqueFiltradoPorBusca = estoqueFiltrado.filter(item => {
-                            const busca = searchEstoque.toLowerCase();
-                            return (
-                              getLojaCode(item.unidades?.nome || '').toLowerCase().includes(busca) ||
-                              item.apelido_unidade?.toLowerCase().includes(busca) ||
-                              item.produto_nome?.toLowerCase().includes(busca)
-                            );
-                          });
 
-                          return estoqueFiltradoPorBusca
-                            .sort((a, b) => (b.quantidade || 0) - (a.quantidade || 0)) // Ordenar por quantidade (maior para menor)
-                            .map((item) => {
-                              const maxQuantidade = Math.max(...estoqueFiltrado.map(e => e.quantidade || 0));
+                                                      return estoquePaginado.map((item) => {
+                              const maxQuantidade = Math.max(...estoquePaginado.map((e: any) => e.quantidade || 0));
                               const percentualBarra = maxQuantidade > 0 ? ((item.quantidade || 0) / maxQuantidade) * 100 : 0;
 
                               return (
@@ -3462,10 +3592,40 @@ Preço Unitário: R$ ${(item.valor_estoque || 0).toLocaleString('pt-BR')}
                             });
                         })()}
                       </div>
+                      
+                      {/* Componente de Paginação */}
+                      {(() => {
+                        const { totalItems, totalPages } = getEstoqueFiltradoEPaginado();
+                        
+                        if (totalPages > 1) {
+                          return (
+                            <div style={{ 
+                              display: 'flex', 
+                              justifyContent: 'center', 
+                              alignItems: 'center', 
+                              padding: '16px',
+                              borderTop: '1px solid #e2e8f0',
+                              backgroundColor: '#f8fafc'
+                            }}>
+                              <TotalItemsDisplay
+                                
+                                
+                                
+                                totalItems={totalItems}
+                                
+                                
+                              />
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
                     </div>
                   </div>
                 </div>
               </div>
+              
+
             </div>
           </div>
         </div>
@@ -3802,7 +3962,7 @@ Preço Unitário: R$ ${(item.valor_estoque || 0).toLocaleString('pt-BR')}
                               }
                             };
 
-                            return <Line data={finalData} options={options} />;
+                            return <Line data={finalData} options={options as any} />;
                           })()}
                         </div>
                       )}

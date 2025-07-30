@@ -1,10 +1,10 @@
 import React from 'react';
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement, PointElement, LineElement, ChartOptions, TooltipItem, ChartEvent, ActiveElement } from 'chart.js';
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement, PointElement, LineElement, TooltipItem, ChartEvent, ActiveElement } from 'chart.js';
 import { Bar, Doughnut, Line } from 'react-chartjs-2';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement, PointElement, LineElement);
 
-interface ChartCardProps {
+export interface ChartCardProps {
   title: string;
   type: 'bar' | 'doughnut' | 'line';
   chartData: {
@@ -29,7 +29,7 @@ interface ChartCardProps {
 
 const ChartCard: React.FC<ChartCardProps> = ({ title, type, chartData, onBarClick, formatType = 'currency', getTooltipExtra, onHover }) => {
   // Usar ChartOptions com tipo genérico para manter tipagem adequada
-  const options: ChartOptions<'bar' | 'line' | 'doughnut'> = {
+  const options = {
     responsive: true,
     maintainAspectRatio: false,
     interaction: {
@@ -64,8 +64,8 @@ const ChartCard: React.FC<ChartCardProps> = ({ title, type, chartData, onBarClic
                 });
               }
               // A propriedade getTooltipExtra agora é reconhecida devido à extensão da interface ChartOptions
-              if (typeof context.chart?.options?.getTooltipExtra === 'function') {
-                const extra = context.chart.options.getTooltipExtra(context.label);
+              if (typeof (context.chart?.options as any)?.getTooltipExtra === 'function') {
+                const extra = (context.chart.options as any).getTooltipExtra(context.label);
                 if (extra) {
                   return label + ' | ' + extra;
                 }

@@ -47,6 +47,10 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({
 
   const handleFilterChange = (key: keyof FilterType, value: string) => {
     console.log('🎛️ Mudança de filtro no componente:', key, 'valor:', value);
+    console.log('🎛️ Tipo do valor:', typeof value);
+    console.log('🎛️ Valor é string?', typeof value === 'string');
+    console.log('🎛️ Valor é number?', !isNaN(parseInt(value, 10)));
+    console.log('🎛️ Valor convertido para número:', parseInt(value, 10));
     onFiltersChange({
       ...filters,
       [key]: value

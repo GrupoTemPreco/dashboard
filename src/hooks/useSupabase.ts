@@ -25,7 +25,6 @@ export const useSupabase = () => {
           *,
           unidades(nome, codigo)
         `)
-        .gte('ano_mes', '2025-01') // Excluir dezembro 2024 e anteriores
         .order('ano_mes', { ascending: true });
 
       if (filters.unidade && filters.unidade !== 'all') {
@@ -63,36 +62,133 @@ export const useSupabase = () => {
     setError(null);
 
     try {
+      console.log('🔍 fetchEstoque - Iniciando busca de estoque...');
+      console.log('🔍 Filtros recebidos:', filters);
+      console.log('🔍 Filtro unidade específico:', filters.unidade);
+      console.log('🔍 Tipo do filtro unidade:', typeof filters.unidade);
+      console.log('🔍 Filtro unidade é string?', typeof filters.unidade === 'string');
+      console.log('🔍 Filtro unidade é number?', typeof filters.unidade === 'number');
+      console.log('🔍 Filtro unidade é "all"?', filters.unidade === 'all');
+      console.log('🔍 Supabase URL:', import.meta.env.VITE_SUPABASE_URL);
+      console.log('🔍 Supabase Key configurado:', !!import.meta.env.VITE_SUPABASE_ANON_KEY);
+
       let query = supabase
         .from('estoque_2')
         .select(`
           *,
           unidades(nome, codigo)
         `)
-        .gte('ano_mes', '2025-01') // Excluir dezembro 2024 e anteriores
-        .order('valor_estoque', { ascending: false });
+        .order('quantidade', { ascending: false })
+        .order('produto_nome', { ascending: true });
 
       // Aplicar filtros se fornecidos
       if (filters.unidade && filters.unidade !== 'all') {
-        query = query.eq('unidade_id', filters.unidade);
+        console.log('🔍 Aplicando filtro de unidade:', filters.unidade);
+        console.log('🔍 Tipo do filtro unidade antes da query:', typeof filters.unidade);
+        
+        // Converter para número se for string
+        const unidadeId = typeof filters.unidade === 'string' ? parseInt(filters.unidade, 10) : filters.unidade;
+        console.log('🔍 unidadeId convertido:', unidadeId);
+        console.log('🔍 unidadeId é válido?', !isNaN(unidadeId));
+        
+        if (!isNaN(unidadeId)) {
+          query = query.eq('unidade_id', unidadeId);
+          console.log('🔍 Query após aplicar filtro de unidade:', query);
+        } else {
+          console.log('❌ Erro: unidade_id inválido:', filters.unidade);
+        }
+      } else {
+        console.log('🔍 NÃO aplicando filtro de unidade - valor:', filters.unidade);
       }
 
       if (filters.periodo && filters.periodo !== 'all') {
+        console.log('🔍 Aplicando filtro de período:', filters.periodo);
         query = query.eq('ano_mes', filters.periodo);
       }
 
-      // Temporariamente desabilitado até a coluna categoria ser criada no banco
-      // if (filters.categoria && filters.categoria !== 'all') {
-      //   query = query.eq('categoria', filters.categoria);
-      // }
+      // Filtro de busca universal (se fornecido)
+      if (filters.search && filters.search.trim()) {
+        const searchTerm = filters.search.trim().toLowerCase();
+        console.log('🔍 Aplicando filtro de busca universal:', searchTerm);
+        // Busca apenas no nome do produto por enquanto
+        query = query.ilike('produto_nome', `%${searchTerm}%`);
+      }
 
+      // Buscar total de registros primeiro (sem paginação)
+      let countQuery = supabase
+        .from('estoque_2')
+        .select('*', { count: 'exact', head: true });
+
+      // Aplicar os mesmos filtros para a contagem
+      if (filters.unidade && filters.unidade !== 'all') {
+        console.log('🔍 Aplicando filtro de unidade na contagem:', filters.unidade);
+        const unidadeId = typeof filters.unidade === 'string' ? parseInt(filters.unidade, 10) : filters.unidade;
+        console.log('🔍 unidadeId para contagem:', unidadeId);
+        if (!isNaN(unidadeId)) {
+          countQuery = countQuery.eq('unidade_id', unidadeId);
+        }
+      }
+
+      if (filters.periodo && filters.periodo !== 'all') {
+        countQuery = countQuery.eq('ano_mes', filters.periodo);
+      }
+
+      if (filters.search && filters.search.trim()) {
+        const searchTerm = filters.search.trim().toLowerCase();
+        countQuery = countQuery.ilike('produto_nome', `%${searchTerm}%`);
+      }
+
+      console.log('🔍 Executando countQuery...');
+      const { count: totalCount, error: countError } = await countQuery;
+      
+      if (countError) {
+        console.error('❌ Erro na contagem:', countError);
+        throw countError;
+      }
+
+      console.log('🔍 Total de registros encontrados:', totalCount);
+
+      // Aplicar paginação para os dados
+      const page = filters.page || 1;
+      const pageSize = filters.pageSize || 200;
+      const offset = (page - 1) * pageSize;
+      query = query.range(offset, offset + pageSize - 1);
+
+      console.log('🔍 Executando query com paginação...');
+      console.log('🔍 Query final:', query);
       const { data, error } = await query;
 
-      if (error) throw error;
-      return data;
+      if (error) {
+        console.error('❌ Erro na consulta estoque_2:', error);
+        throw error;
+      }
+
+      console.log('🔍 Dados retornados do fetchEstoque:', data?.length, 'registros');
+      console.log('🔍 Primeiros 3 registros para debug:', data?.slice(0, 3).map(item => ({
+        id: item.id,
+        produto_nome: item.produto_nome,
+        unidade_id: item.unidade_id,
+        quantidade: item.quantidade
+      })));
+
+      // Retornar com total real do banco
+      return {
+        data: data || [],
+        totalCount: totalCount || 0,
+        currentPage: page,
+        totalPages: Math.ceil((totalCount || 0) / pageSize),
+        pageSize
+      };
     } catch (err) {
+      console.error('❌ Erro em fetchEstoque:', err);
       setError(err instanceof Error ? err.message : 'Erro ao buscar estoque_2');
-      return [];
+      return {
+        data: [],
+        totalCount: 0,
+        currentPage: 1,
+        totalPages: 1,
+        pageSize: filters.pageSize || 200
+      };
     } finally {
       setLoading(false);
     }
@@ -218,13 +314,14 @@ export const useSupabase = () => {
     setError(null);
 
     try {
+      // CMV é calculado a partir dos dados de faturamento
+      // Não precisamos de uma tabela separada
       let query = supabase
         .from('faturamento')
         .select(`
           *,
           unidades(nome, codigo)
         `)
-        .gte('ano_mes', '2025-01') // Excluir dezembro 2024 e anteriores
         .order('ano_mes', { ascending: true });
 
       // Aplicar filtros se fornecidos
@@ -246,7 +343,7 @@ export const useSupabase = () => {
       if (error) throw error;
       return data;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao buscar CMV');
+      setError(err instanceof Error ? err.message : 'Erro ao buscar dados de CMV');
       return [];
     } finally {
       setLoading(false);
@@ -264,7 +361,6 @@ export const useSupabase = () => {
           *,
           unidades(nome, codigo)
         `)
-        .gte('ano_mes', '2025-01') // Excluir dezembro 2024 e anteriores
         .order('ano_mes', { ascending: true });
 
       // Aplicar filtros se fornecidos

@@ -90,6 +90,16 @@ interface ProdutoAgrupado {
   count: number;
 }
 
+interface ProdutoRanking {
+  produto_nome: string;
+  fabricante: string;
+  quantidade: number;
+  valor_estoque: number;
+  dias_estoque: number;
+  ultima_venda_dias: number;
+  ultima_compra_dias: number;
+}
+
 const Dashboard: React.FC = () => {
   const [filters, setFilters] = useState<FilterType>({
     periodo: 'all',
@@ -146,6 +156,12 @@ const Dashboard: React.FC = () => {
   const [showQuantidadeVendasModalView, setShowQuantidadeVendasModalView] = useState(false);
   const [showDiasEstoqueModal, setShowDiasEstoqueModal] = useState(false);
   const [showMaiorTempoEstoqueModal, setShowMaiorTempoEstoqueModal] = useState(false);
+  const [maiorTempoEstoqueSearchTerm, setMaiorTempoEstoqueSearchTerm] = useState('');
+  const [maiorTempoEstoqueLojaFilter, setMaiorTempoEstoqueLojaFilter] = useState('all');
+  
+  // Estados para filtro de lojas no modal de detalhes do produto
+  const [produtoDetalhesLojasFiltradas, setProdutoDetalhesLojasFiltradas] = useState<string[]>([]);
+  const [showProdutoDetalhesLojasDropdown, setShowProdutoDetalhesLojasDropdown] = useState(false);
   // @ts-expect-error
   const [vendasProdutoSelecionado, setVendasProdutoSelecionado] = useState<VendaItem[]>([]);
   // @ts-expect-error
@@ -161,7 +177,7 @@ const Dashboard: React.FC = () => {
 
   // Estados para paginação centralizada
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(200);
+  const itemsPerPage = 200; // Valor fixo, não precisa de setter
   const [estoquePagination, setEstoquePagination] = useState<{
     totalCount: number;
     totalPages: number;
@@ -178,7 +194,7 @@ const Dashboard: React.FC = () => {
   const [hoveredFaturamentoIndex, setHoveredFaturamentoIndex] = useState<number | null>(null);
   const [hoveredCmvIndex, setHoveredCmvIndex] = useState<number | null>(null);
   const [hoveredMargemBrutaIndex, setHoveredMargemBrutaIndex] = useState<number | null>(null);
-  const [hoveredColaboradoresIndex, setHoveredColaboradoresIndex] = useState<number | null>(null);
+
 
   const { loading, error, fetchFaturamento, fetchEstoque, fetchUnidades, fetchCMV, fetchColaboradores } = useSupabase();
 
@@ -698,24 +714,145 @@ const Dashboard: React.FC = () => {
     setShowProdutoDetalhesModal(true);
   };
 
+  const openProdutoDetalhesModalFromRanking = (produtoRanking: ProdutoRanking) => {
+    // Converter dados do ranking para o formato esperado pelo modal
+    const produtoConvertido: Estoque2 = {
+      id: 0, // ID não disponível no ranking
+      unidade_id: 0, // Será preenchido com dados reais se necessário
+      produto_nome: produtoRanking.produto_nome,
+      fabricante: produtoRanking.fabricante,
+      quantidade: produtoRanking.quantidade,
+      valor_estoque: produtoRanking.quantidade > 0 ? produtoRanking.valor_estoque / produtoRanking.quantidade : 0, // Valor unitário
+      dias_estoque: produtoRanking.dias_estoque,
+      data_atualizacao: new Date().toISOString(),
+      data_estocagem: new Date().toISOString(),
+      ano_mes: filters.periodo,
+      necessidade: '',
+      estoque_confirmado: 0,
+      comprar: 0,
+      curva_qtd: '',
+      media_venda_mensal: 0,
+      estoque_final_dias: produtoRanking.dias_estoque,
+      classificacao_principal: '',
+      preco_venda_medio: 0,
+      ultima_venda_dias: produtoRanking.ultima_venda_dias,
+      transferencia_confirmada: 0,
+      comprar_dias: 0,
+      necessidade_dias: 0,
+      ultima_compra_dias: produtoRanking.ultima_compra_dias,
+      apelido_unidade: '',
+      fornecedor_ultima_compra: '',
+      media_venda_diaria: 0,
+      qtd_demanda: 0,
+      estoque_minimo: 0,
+      origem_estoque_minimo: '',
+      custo: 0,
+      custo_medio: 0,
+      curva_valor: '',
+      custo_x_necessidade: 0,
+      custo_x_estoque: 0,
+      ruptura_venda: 0,
+      necessidade_qtd: 0,
+      percentual_suprida_qtd: 0,
+      compra_confirmada: 0,
+      encomenda: 0,
+      categoria: '',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      unidades: undefined
+    };
+    
+    setProdutoSelecionadoDetalhes(produtoConvertido);
+    setShowProdutoDetalhesModal(true);
+    // Limpar filtro de lojas ao abrir novo produto
+    setProdutoDetalhesLojasFiltradas([]);
+    setShowProdutoDetalhesLojasDropdown(false);
+  };
+
+  // Funções para gerenciar filtro de lojas no modal de detalhes
+  const handleProdutoDetalhesSelectAllLojas = (checked: boolean) => {
+    if (checked && produtoSelecionadoDetalhes) {
+      const dadosPorLoja = getProdutoDadosPorLoja(produtoSelecionadoDetalhes?.produto_nome || '', produtoSelecionadoDetalhes?.fabricante || '');
+      setProdutoDetalhesLojasFiltradas(dadosPorLoja.map(loja => loja.lojaId));
+    } else {
+      setProdutoDetalhesLojasFiltradas([]);
+    }
+  };
+
+  const handleProdutoDetalhesSelectLoja = (lojaId: string, checked: boolean) => {
+    if (checked) {
+      setProdutoDetalhesLojasFiltradas(prev => [...prev, lojaId]);
+    } else {
+      setProdutoDetalhesLojasFiltradas(prev => prev.filter(id => id !== lojaId));
+    }
+  };
+
+  const getProdutoDetalhesLojasSelecionadas = () => {
+    return produtoDetalhesLojasFiltradas;
+  };
+
+  const getProdutoDadosPorLoja = (produtoNome: string, fabricante: string) => {
+    // Filtrar dados de estoque pelo produto específico
+    const dadosProduto = estoque.filter(item => 
+      item.produto_nome === produtoNome && 
+      item.fabricante === fabricante
+    );
+
+    // Agrupar por loja
+    const dadosPorLoja = dadosProduto.reduce((acc, item) => {
+      const lojaId = String(item.unidade_id);
+      const loja = unidades.find(u => String(u.id) === lojaId);
+      
+      if (!acc[lojaId]) {
+        acc[lojaId] = {
+          lojaId: lojaId,
+          lojaNome: loja?.nome || `Loja ${lojaId}`,
+          quantidade: 0,
+          valorTotal: 0,
+          diasEstoque: 0,
+          ultimaVendaDias: 0,
+          ultimaCompraDias: 0,
+          count: 0
+        };
+      }
+
+      acc[lojaId].quantidade += item.quantidade;
+      acc[lojaId].valorTotal += item.valor_estoque * item.quantidade;
+      acc[lojaId].diasEstoque += item.dias_estoque;
+      acc[lojaId].ultimaVendaDias += item.ultima_venda_dias || 0;
+      acc[lojaId].ultimaCompraDias += item.ultima_compra_dias || 0;
+      acc[lojaId].count += 1;
+
+      return acc;
+    }, {} as Record<string, {
+      lojaId: string;
+      lojaNome: string;
+      quantidade: number;
+      valorTotal: number;
+      diasEstoque: number;
+      ultimaVendaDias: number;
+      ultimaCompraDias: number;
+      count: number;
+    }>);
+
+    // Calcular médias e retornar array
+    return Object.values(dadosPorLoja).map(loja => ({
+      lojaId: loja.lojaId,
+      lojaNome: loja.lojaNome,
+      quantidade: loja.quantidade,
+      valorTotal: loja.valorTotal,
+      diasEstoque: Math.round(loja.diasEstoque / loja.count),
+      ultimaVendaDias: Math.round(loja.ultimaVendaDias / loja.count),
+      ultimaCompraDias: Math.round(loja.ultimaCompraDias / loja.count)
+    }));
+  };
+
   const openHelpModal = (type: 'faturamento' | 'cmv' | 'margemBruta' | 'colaboradores' | 'diasEstoque' | 'estoque' | 'maiorTempoEstoque' | 'totalColaboradores' | 'ticketMedio') => {
     setHelpModalType(type);
     setShowHelpModal(true);
   };
 
-  // Funções de paginação
-  const handlePageChange = (newPage: number) => {
-    console.log('🔄 Mudando para página:', newPage);
-    setCurrentPage(newPage);
-    // O loadData será chamado automaticamente pelo useEffect que depende de currentPage
-  };
 
-  const handleItemsPerPageChange = (newItemsPerPage: number) => {
-    console.log('🔄 Mudando itens por página para:', newItemsPerPage);
-    setItemsPerPage(newItemsPerPage);
-    setCurrentPage(1);
-    // O loadData será chamado automaticamente pelo useEffect que depende de itemsPerPage
-  };
 
   // Filtro para Valor de Estoque
   const estoqueComValor = estoque
@@ -1602,7 +1739,7 @@ const Dashboard: React.FC = () => {
   };
 
   // Função para obter produtos rankeados por tempo no estoque
-  const getProdutosRankeadosPorTempoEstoque = () => {
+  const getProdutosRankeadosPorTempoEstoque = (searchTerm = '', lojaFilter = 'all') => {
     if (!estoque.length) return [];
 
     // Filtrar dados baseado nos filtros atuais
@@ -1613,9 +1750,14 @@ const Dashboard: React.FC = () => {
       estoqueFiltrado = estoqueFiltrado.filter(item => item.ano_mes === filters.periodo);
     }
 
-    // Filtrar por unidade
+    // Filtrar por unidade (filtro principal do dashboard)
     if (filters.unidade !== 'all') {
       estoqueFiltrado = estoqueFiltrado.filter(item => String(item.unidade_id) === String(filters.unidade));
+    }
+
+    // Filtrar por loja específica do modal (se aplicável)
+    if (lojaFilter !== 'all') {
+      estoqueFiltrado = estoqueFiltrado.filter(item => String(item.unidade_id) === String(lojaFilter));
     }
 
     // Agrupar por produto e calcular tempo médio no estoque
@@ -1645,7 +1787,7 @@ const Dashboard: React.FC = () => {
     }, {} as Record<string, ProdutoAgrupado>);
 
     // Calcular médias e ordenar por tempo no estoque
-    const produtosRankeados = Object.values(produtosAgrupados)
+    let produtosRankeados: ProdutoRanking[] = Object.values(produtosAgrupados)
       .map((produto: ProdutoAgrupado) => ({
         produto_nome: produto.produto_nome,
         fabricante: produto.fabricante,
@@ -1655,10 +1797,18 @@ const Dashboard: React.FC = () => {
         quantidade: produto.quantidade,
         valor_estoque: produto.valor_estoque
       }))
-      .sort((a, b) => b.dias_estoque - a.dias_estoque)
-      .slice(0, 50); // Top 50 produtos
+      .sort((a, b) => b.dias_estoque - a.dias_estoque);
 
-    return produtosRankeados;
+    // Aplicar filtro de pesquisa se fornecido
+    if (searchTerm.trim()) {
+      const termoBusca = searchTerm.toLowerCase();
+      produtosRankeados = produtosRankeados.filter(produto => 
+        produto.produto_nome.toLowerCase().includes(termoBusca) ||
+        produto.fabricante.toLowerCase().includes(termoBusca)
+      );
+    }
+
+    return produtosRankeados.slice(0, 50); // Top 50 produtos
   };
 
   // Filtro para Valor de Estoque (removido pois não é usado)
@@ -1837,15 +1987,15 @@ const Dashboard: React.FC = () => {
                     <div>
                       <div className="metric-title">Faturamento</div>
                       <div className="metric-value">
-                        R$ {metrics.faturamentoTotal.toLocaleString('pt-BR', {})}
+                        R$ {Number(metrics.faturamentoTotal).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
                       <div className="metric-subtitle">Itens Vendidos</div>
                       <div className="metric-subvalue">
-                        {faturamento.reduce((acc, item) => acc + item.itens_vendidos, 0).toLocaleString('pt-BR')}
+                        {Number(faturamento.reduce((acc, item) => acc + item.itens_vendidos, 0)).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                       </div>
                       <div className="metric-subtitle">Média por Item</div>
                       <div className="metric-subvalue">
-                        R$ {faturamento.length > 0 ? (metrics.faturamentoTotal / faturamento.reduce((acc, item) => acc + item.itens_vendidos, 0)).toFixed(2) : '0,00'}
+                        R$ {faturamento.length > 0 ? Number(metrics.faturamentoTotal / faturamento.reduce((acc, item) => acc + item.itens_vendidos, 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0,00'}
                       </div>
                     </div>
                     <div className="metric-icon">
@@ -1884,11 +2034,11 @@ const Dashboard: React.FC = () => {
                       </div>
                       <div className="metric-subtitle">Produtos em Estoque</div>
                       <div className="metric-subvalue">
-                        {estoque.length > 0 ? estoque.filter(item => item.quantidade > 0).length.toLocaleString('pt-BR') : '0'}
+                        {estoque.length > 0 ? Number(estoque.filter(item => item.quantidade > 0).length).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : '0'}
                       </div>
                       <div className="metric-subtitle">Total de Itens</div>
                       <div className="metric-subvalue">
-                        {estoque.reduce((acc, item) => acc + (item.quantidade || 0), 0).toLocaleString('pt-BR')}
+                        {Number(estoque.reduce((acc, item) => acc + (item.quantidade || 0), 0)).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                       </div>
                     </div>
                     <div className="metric-icon">
@@ -1938,9 +2088,9 @@ const Dashboard: React.FC = () => {
                   <div className="metric-header">
                     <div>
                       <div className="metric-title">Média Margem Bruta</div>
-                      <div className="metric-value">{metrics.mediaMargemBruta.toFixed(1)}%</div>
+                      <div className="metric-value">{Number(metrics.mediaMargemBruta).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%</div>
                       <div className="metric-subtitle">Margem Bruta Real</div>
-                      <div className="metric-subvalue">{metrics.margemBrutaReal.toFixed(1)}%</div>
+                                              <div className="metric-subvalue">{Number(metrics.margemBrutaReal).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%</div>
                     </div>
                     <div className="metric-icon">
                       <TrendingUp size={20} />
@@ -1955,14 +2105,14 @@ const Dashboard: React.FC = () => {
                   <div className="metric-header">
                     <div>
                       <div className="metric-title">CMV</div>
-                      <div className="metric-value">{metrics.cmvPercent.toFixed(1)}%</div>
+                      <div className="metric-value">{Number(metrics.cmvPercent).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%</div>
                       <div className="metric-subtitle">Valor Absoluto</div>
                       <div className="metric-subvalue">
-                        R$ {metrics.cmvTotal.toLocaleString('pt-BR')}
+                        R$ {Number(metrics.cmvTotal).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
                       <div className="metric-subtitle">Valor Total no Estoque</div>
                       <div className="metric-subvalue">
-                        R$ {metrics.valorTotalEstoque.toLocaleString('pt-BR')}
+                        R$ {Number(metrics.valorTotalEstoque).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
                     </div>
                     <div className="metric-icon">
@@ -1989,7 +2139,7 @@ const Dashboard: React.FC = () => {
                       </div>
                       <div className="metric-subtitle">Vendas Totais</div>
                       <div className="metric-subvalue">
-                        {colaboradores.reduce((acc, c) => acc + c.itens_vendidos, 0).toLocaleString('pt-BR')}
+                        {Number(colaboradores.reduce((acc, c) => acc + c.itens_vendidos, 0)).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                       </div>
                       <div className="metric-subtitle">Média por Colaborador</div>
                       <div className="metric-subvalue">
@@ -2016,17 +2166,17 @@ const Dashboard: React.FC = () => {
                       <div className="metric-title">Ticket Médio Geral</div>
                       <div className="metric-value">
                         R$ {colaboradores.length > 0
-                          ? (colaboradores.reduce((acc, c) => acc + c.valor_venda, 0) /
-                            colaboradores.reduce((acc, c) => acc + c.itens_vendidos, 0)).toFixed(2)
+                          ? Number(colaboradores.reduce((acc, c) => acc + c.valor_venda, 0) /
+                            colaboradores.reduce((acc, c) => acc + c.itens_vendidos, 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                           : '0,00'}
                       </div>
                       <div className="metric-subtitle">Valor Total</div>
                       <div className="metric-subvalue">
-                        R$ {colaboradores.reduce((acc, c) => acc + c.valor_venda, 0).toLocaleString('pt-BR', {})}
+                        R$ {Number(colaboradores.reduce((acc, c) => acc + c.valor_venda, 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
                       <div className="metric-subtitle">Itens Vendidos</div>
                       <div className="metric-subvalue">
-                        {colaboradores.reduce((acc, c) => acc + c.itens_vendidos, 0).toLocaleString('pt-BR')}
+                        {Number(colaboradores.reduce((acc, c) => acc + c.itens_vendidos, 0)).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                       </div>
                     </div>
                     <div className="metric-icon">
@@ -2040,16 +2190,16 @@ const Dashboard: React.FC = () => {
                     <div>
                       <div className="metric-title">Total de Vendas</div>
                       <div className="metric-value">
-                        {colaboradores.reduce((acc, c) => acc + c.itens_vendidos, 0).toLocaleString('pt-BR')}
+                        {Number(colaboradores.reduce((acc, c) => acc + c.itens_vendidos, 0)).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                       </div>
                       <div className="metric-subtitle">Valor Total</div>
                       <div className="metric-subvalue">
-                        R$ {colaboradores.reduce((acc, c) => acc + c.valor_venda, 0).toLocaleString('pt-BR', {})}
+                        R$ {Number(colaboradores.reduce((acc, c) => acc + c.valor_venda, 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
                       <div className="metric-subtitle">Média por Venda</div>
                       <div className="metric-subvalue">
                         R$ {colaboradores.reduce((acc, c) => acc + c.itens_vendidos, 0) > 0
-                          ? (colaboradores.reduce((acc, c) => acc + c.valor_venda, 0) / colaboradores.reduce((acc, c) => acc + c.itens_vendidos, 0)).toFixed(2)
+                          ? Number(colaboradores.reduce((acc, c) => acc + c.valor_venda, 0) / colaboradores.reduce((acc, c) => acc + c.itens_vendidos, 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                           : '0,00'}
                       </div>
                     </div>
@@ -2683,6 +2833,7 @@ const Dashboard: React.FC = () => {
                       <ChartCard
                         title=""
                         type="line"
+                        formatType="percentage"
                         onHover={setHoveredMargemBrutaIndex}
                         chartData={(() => {
                           // Cores para as lojas - Paleta mais distinta e contrastante
@@ -3978,7 +4129,12 @@ Preço Unitário: R$ ${(item.valor_estoque || 0).toLocaleString('pt-BR')}
 
       {/* Modal do Ranking de Maior Tempo no Estoque */}
       {showMaiorTempoEstoqueModal && (
-        <div className="modal-overlay" onClick={() => setShowMaiorTempoEstoqueModal(false)}>
+        <div className="modal-overlay" onClick={() => {
+          setShowMaiorTempoEstoqueModal(false);
+          // Limpar filtros ao fechar o modal
+          setMaiorTempoEstoqueSearchTerm('');
+          setMaiorTempoEstoqueLojaFilter('all');
+        }}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontWeight: 600, fontSize: 18 }}>Ranking - Maior Tempo no Estoque</span>
@@ -3991,7 +4147,12 @@ Preço Unitário: R$ ${(item.valor_estoque || 0).toLocaleString('pt-BR')}
                   <Info size={20} />
                 </button>
                 <button
-                  onClick={() => setShowMaiorTempoEstoqueModal(false)}
+                  onClick={() => {
+                    setShowMaiorTempoEstoqueModal(false);
+                    // Limpar filtros ao fechar o modal
+                    setMaiorTempoEstoqueSearchTerm('');
+                    setMaiorTempoEstoqueLojaFilter('all');
+                  }}
                   style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#ef4444' }}
                 >
                   ×
@@ -3999,6 +4160,76 @@ Preço Unitário: R$ ${(item.valor_estoque || 0).toLocaleString('pt-BR')}
               </div>
             </div>
             <div className="modal-body">
+              {/* Filtros do Modal */}
+              <div style={{ 
+                display: 'flex', 
+                gap: '12px', 
+                marginBottom: '16px', 
+                flexWrap: 'wrap',
+                alignItems: 'center'
+              }}>
+                {/* Filtro de Pesquisa */}
+                <div style={{ flex: '1', minWidth: '200px' }}>
+                  <input
+                    type="text"
+                    placeholder="Buscar produtos..."
+                    value={maiorTempoEstoqueSearchTerm}
+                    onChange={(e) => setMaiorTempoEstoqueSearchTerm(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      outline: 'none'
+                    }}
+                  />
+                </div>
+
+                {/* Filtro de Loja */}
+                <div style={{ minWidth: '150px' }}>
+                  <select
+                    value={maiorTempoEstoqueLojaFilter}
+                    onChange={(e) => setMaiorTempoEstoqueLojaFilter(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      outline: 'none',
+                      backgroundColor: 'white'
+                    }}
+                  >
+                    <option value="all">Todas as Lojas</option>
+                    {unidades.map((unidade) => (
+                      <option key={unidade.id} value={unidade.id}>
+                        {getLojaCode(unidade.nome)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Botão Limpar Filtros */}
+                <button
+                  onClick={() => {
+                    setMaiorTempoEstoqueSearchTerm('');
+                    setMaiorTempoEstoqueLojaFilter('all');
+                  }}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#f3f4f6',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    cursor: 'pointer',
+                    color: '#374151'
+                  }}
+                >
+                  Limpar
+                </button>
+              </div>
+
               <div style={{ marginBottom: 16 }}>
                 <p style={{ color: '#6b7280', fontSize: 14, marginBottom: 8 }}>
                   Produtos com maior tempo em estoque (Top 50)
@@ -4008,11 +4239,21 @@ Preço Unitário: R$ ${(item.valor_estoque || 0).toLocaleString('pt-BR')}
                     Filtrado: {selectedMonth || filters.periodo}
                   </p>
                 )}
+                {/* Mostrar filtros ativos */}
+                {(maiorTempoEstoqueSearchTerm || maiorTempoEstoqueLojaFilter !== 'all') && (
+                  <div style={{ marginTop: '8px' }}>
+                    <p style={{ color: '#059669', fontSize: 12 }}>
+                      Filtros ativos: 
+                      {maiorTempoEstoqueSearchTerm && ` Pesquisa: "${maiorTempoEstoqueSearchTerm}"`}
+                      {maiorTempoEstoqueLojaFilter !== 'all' && ` Loja: ${getLojaCode(unidades.find(u => String(u.id) === maiorTempoEstoqueLojaFilter)?.nome || '')}`}
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
                 {(() => {
-                  const produtosRankeados = getProdutosRankeadosPorTempoEstoque();
+                  const produtosRankeados = getProdutosRankeadosPorTempoEstoque(maiorTempoEstoqueSearchTerm, maiorTempoEstoqueLojaFilter);
 
                   if (produtosRankeados.length === 0) {
                     return (
@@ -4025,7 +4266,12 @@ Preço Unitário: R$ ${(item.valor_estoque || 0).toLocaleString('pt-BR')}
                   return (
                     <div className="product-list">
                       {produtosRankeados.map((produto, index) => (
-                        <div key={`${produto.produto_nome}-${produto.fabricante}`} className="product-item">
+                        <div 
+                          key={`${produto.produto_nome}-${produto.fabricante}`} 
+                          className="product-item"
+                          onClick={() => openProdutoDetalhesModalFromRanking(produto)}
+                          style={{ cursor: 'pointer' }}
+                        >
                           <div className="product-info">
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                               <div style={{
@@ -4058,10 +4304,10 @@ Preço Unitário: R$ ${(item.valor_estoque || 0).toLocaleString('pt-BR')}
                                 {produto.dias_estoque} dias
                               </div>
                               <div style={{ fontSize: 12, color: '#6b7280' }}>
-                                Qtd: {Math.round(produto.quantidade).toLocaleString('pt-BR')}
+                                Qtd: {Number(produto.quantidade).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                               </div>
                               <div style={{ fontSize: 12, color: '#6b7280' }}>
-                                R$ {produto.valor_estoque.toLocaleString('pt-BR')}
+                                R$ {Number(produto.valor_estoque).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </div>
                             </div>
                           </div>
@@ -4133,7 +4379,7 @@ Preço Unitário: R$ ${(item.valor_estoque || 0).toLocaleString('pt-BR')}
                     <span style={{ fontSize: '14px', fontWeight: '500', color: '#0c4a6e' }}>Quantidade em Estoque</span>
                   </div>
                   <div style={{ fontSize: '24px', fontWeight: '700', color: '#0c4a6e' }}>
-                    {Math.round(produtoSelecionadoDetalhes.quantidade || 0).toLocaleString('pt-BR')} unidades
+                    {Number(produtoSelecionadoDetalhes.quantidade || 0).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} unidades
                   </div>
                 </div>
 
@@ -4143,7 +4389,7 @@ Preço Unitário: R$ ${(item.valor_estoque || 0).toLocaleString('pt-BR')}
                     <span style={{ fontSize: '14px', fontWeight: '500', color: '#991b1b' }}>Preço Unitário</span>
                   </div>
                   <div style={{ fontSize: '24px', fontWeight: '700', color: '#991b1b' }}>
-                    R$ {(produtoSelecionadoDetalhes.valor_estoque || 0).toLocaleString('pt-BR')}
+                    R$ {Number(produtoSelecionadoDetalhes.valor_estoque || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
 
@@ -4153,7 +4399,7 @@ Preço Unitário: R$ ${(item.valor_estoque || 0).toLocaleString('pt-BR')}
                     <span style={{ fontSize: '14px', fontWeight: '500', color: '#991b1b' }}>Valor Total</span>
                   </div>
                   <div style={{ fontSize: '24px', fontWeight: '700', color: '#991b1b' }}>
-                    R$ {Math.round((produtoSelecionadoDetalhes.quantidade || 0) * (produtoSelecionadoDetalhes.valor_estoque || 0)).toLocaleString('pt-BR')}
+                    R$ {Number((produtoSelecionadoDetalhes.quantidade || 0) * (produtoSelecionadoDetalhes.valor_estoque || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
 
@@ -4205,6 +4451,253 @@ Preço Unitário: R$ ${(item.valor_estoque || 0).toLocaleString('pt-BR')}
                   </div>
                 </div>
               </div>
+
+              {/* Cards por Loja */}
+              {(() => {
+                const dadosPorLoja = getProdutoDadosPorLoja(produtoSelecionadoDetalhes.produto_nome, produtoSelecionadoDetalhes.fabricante);
+                
+                if (dadosPorLoja.length === 0) {
+                  return (
+                    <div style={{ 
+                      padding: '20px', 
+                      backgroundColor: '#fef2f2', 
+                      borderRadius: '8px', 
+                      border: '1px solid #fecaca',
+                      textAlign: 'center',
+                      color: '#991b1b'
+                    }}>
+                      <p style={{ margin: 0, fontSize: '14px' }}>
+                        Nenhum dado encontrado para este produto nas lojas disponíveis.
+                      </p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div style={{ marginBottom: '24px' }}>
+                    <h3 style={{ 
+                      margin: '0 0 16px 0', 
+                      fontSize: '18px', 
+                      fontWeight: '600', 
+                      color: '#1e293b',
+                      borderBottom: '2px solid #e2e8f0',
+                      paddingBottom: '8px'
+                    }}>
+                      📊 Informações por Loja
+                    </h3>
+                    
+                    {/* Filtro de Lojas - Dropdown */}
+                    <div style={{ 
+                      marginBottom: '16px',
+                      position: 'relative'
+                    }}>
+                      <div style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'space-between',
+                        marginBottom: '8px'
+                      }}>
+                        <span style={{ 
+                          fontSize: '14px', 
+                          fontWeight: '500', 
+                          color: '#374151' 
+                        }}>
+                          Filtrar Lojas:
+                        </span>
+                        <button
+                          onClick={() => setProdutoDetalhesLojasFiltradas([])}
+                          style={{
+                            padding: '2px 8px',
+                            fontSize: '11px',
+                            backgroundColor: '#f3f4f6',
+                            border: '1px solid #d1d5db',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            color: '#6b7280'
+                          }}
+                        >
+                          Limpar
+                        </button>
+                      </div>
+                      
+                      {/* Dropdown Button */}
+                      <div style={{ position: 'relative' }}>
+                        <button
+                          onClick={() => setShowProdutoDetalhesLojasDropdown(!showProdutoDetalhesLojasDropdown)}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            backgroundColor: 'white',
+                            border: '1px solid #d1d5db',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            fontSize: '14px',
+                            color: '#374151'
+                          }}
+                        >
+                          <span>
+                            {getProdutoDetalhesLojasSelecionadas().length === 0 
+                              ? 'Todas as unidades' 
+                              : getProdutoDetalhesLojasSelecionadas().length === dadosPorLoja.length
+                              ? 'Todas as unidades'
+                              : `${getProdutoDetalhesLojasSelecionadas().length} unidade(s) selecionada(s)`
+                            }
+                          </span>
+                          <span style={{ 
+                            fontSize: '12px', 
+                            color: '#6b7280',
+                            transform: showProdutoDetalhesLojasDropdown ? 'rotate(180deg)' : 'rotate(0deg)',
+                            transition: 'transform 0.2s ease'
+                          }}>
+                            ▼
+                          </span>
+                        </button>
+                        
+                        {/* Dropdown Content */}
+                        {showProdutoDetalhesLojasDropdown && (
+                          <div style={{
+                            position: 'absolute',
+                            top: '100%',
+                            left: 0,
+                            right: 0,
+                            backgroundColor: 'white',
+                            border: '1px solid #d1d5db',
+                            borderRadius: '6px',
+                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                            zIndex: 1000,
+                            maxHeight: '200px',
+                            overflowY: 'auto'
+                          }}>
+                            {/* Select All Option */}
+                            <label style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              padding: '8px 12px',
+                              cursor: 'pointer',
+                              borderBottom: '1px solid #f3f4f6',
+                              backgroundColor: getProdutoDetalhesLojasSelecionadas().length === dadosPorLoja.length ? '#dbeafe' : 'transparent'
+                            }}>
+                              <input
+                                type="checkbox"
+                                checked={getProdutoDetalhesLojasSelecionadas().length === dadosPorLoja.length}
+                                onChange={(e) => handleProdutoDetalhesSelectAllLojas(e.target.checked)}
+                                style={{ 
+                                  cursor: 'pointer',
+                                  marginRight: '8px'
+                                }}
+                              />
+                              <span style={{ 
+                                color: getProdutoDetalhesLojasSelecionadas().length === dadosPorLoja.length ? '#1e40af' : '#374151',
+                                fontWeight: getProdutoDetalhesLojasSelecionadas().length === dadosPorLoja.length ? '500' : 'normal'
+                              }}>
+                                Todas as unidades
+                              </span>
+                            </label>
+                            
+                            {/* Individual Store Options */}
+                            {dadosPorLoja.map((loja) => (
+                              <label key={loja.lojaId} style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                padding: '8px 12px',
+                                cursor: 'pointer',
+                                borderBottom: '1px solid #f3f4f6',
+                                backgroundColor: getProdutoDetalhesLojasSelecionadas().includes(loja.lojaId) ? '#dbeafe' : 'transparent'
+                              }}>
+                                <input
+                                  type="checkbox"
+                                  checked={getProdutoDetalhesLojasSelecionadas().includes(loja.lojaId)}
+                                  onChange={(e) => handleProdutoDetalhesSelectLoja(loja.lojaId, e.target.checked)}
+                                  style={{ 
+                                    cursor: 'pointer',
+                                    marginRight: '8px'
+                                  }}
+                                />
+                                <span style={{ 
+                                  color: getProdutoDetalhesLojasSelecionadas().includes(loja.lojaId) ? '#1e40af' : '#374151',
+                                  fontWeight: getProdutoDetalhesLojasSelecionadas().includes(loja.lojaId) ? '500' : 'normal',
+                                  fontSize: '14px'
+                                }}>
+                                  {getLojaCode(loja.lojaNome) || loja.lojaNome}
+                                </span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div style={{ 
+                      display: 'grid', 
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', 
+                      gap: '16px' 
+                    }}>
+                      {dadosPorLoja
+                        .filter(loja => 
+                          getProdutoDetalhesLojasSelecionadas().length === 0 || 
+                          getProdutoDetalhesLojasSelecionadas().includes(loja.lojaId)
+                        )
+                        .map((loja) => (
+                        <div key={loja.lojaId} style={{ 
+                          padding: '16px', 
+                          backgroundColor: '#f8fafc', 
+                          borderRadius: '8px', 
+                          border: '1px solid #e2e8f0'
+                        }}>
+                          <h4 style={{ 
+                            margin: '0 0 12px 0', 
+                            fontSize: '16px', 
+                            fontWeight: '600', 
+                            color: '#374151' 
+                          }}>
+                            {loja.lojaNome}
+                          </h4>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ fontSize: '14px', color: '#6b7280' }}>Quantidade:</span>
+                              <span style={{ fontSize: '14px', fontWeight: '500', color: '#374151' }}>
+                                {Number(loja.quantidade).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                              </span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ fontSize: '14px', color: '#6b7280' }}>Valor Total:</span>
+                              <span style={{ fontSize: '14px', fontWeight: '500', color: '#374151' }}>
+                                R$ {Number(loja.valorTotal).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ fontSize: '14px', color: '#6b7280' }}>Dias Estoque:</span>
+                              <span style={{ 
+                                fontSize: '14px', 
+                                fontWeight: '500', 
+                                color: loja.diasEstoque > 90 ? '#ef4444' : 
+                                       loja.diasEstoque > 60 ? '#f59e0b' : '#166534'
+                              }}>
+                                {loja.diasEstoque} dias
+                              </span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ fontSize: '14px', color: '#6b7280' }}>Últ. Venda:</span>
+                              <span style={{ fontSize: '14px', fontWeight: '500', color: '#374151' }}>
+                                {loja.ultimaVendaDias} dias atrás
+                              </span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ fontSize: '14px', color: '#6b7280' }}>Últ. Compra:</span>
+                              <span style={{ fontSize: '14px', fontWeight: '500', color: '#374151' }}>
+                                {loja.ultimaCompraDias} dias atrás
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>

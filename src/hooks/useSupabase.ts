@@ -57,6 +57,49 @@ export const useSupabase = () => {
     }
   }, []);
 
+  // Função auxiliar para aplicar filtro de categoria
+  const applyCategoriaFilter = (query: any, categoria: string) => {
+    if (categoria === 'perfumaria') {
+      // Para perfumaria, usar termos principais para evitar query muito longa
+      return query.or('classificacao_principal.ilike.%perfumaria%,classificacao_principal.ilike.%cosmeticos%,classificacao_principal.ilike.%beleza%,classificacao_principal.ilike.%cuidado%');
+    } else {
+      // Para outras categorias, usar mapeamento específico
+      const categoriaMap: { [key: string]: string[] } = {
+        'bonificado': [
+          'bonificado', 
+          'bonificado oneroso',
+          'antibiotico',
+          'generico',
+          'generico oneroso',
+          'psicotropicos'
+        ],
+        'medicamentos': [
+          'antibiotico',
+          'anticoncepcional',
+          'cartelados',
+          'controlado etico',
+          'éticos geral'
+        ],
+        'oficinais': [
+          'oficinais',
+          'oficial',
+          'oficinais linha eletro',
+          'oficinais linha geral',
+          'produtos naturais'
+        ]
+      };
+
+      const categoriasParaBuscar = categoriaMap[categoria] || [];
+      if (categoriasParaBuscar.length > 0) {
+        const orConditions = categoriasParaBuscar.map(cat => 
+          `classificacao_principal.ilike.%${cat}%`
+        );
+        return query.or(orConditions.join(','));
+      }
+    }
+    return query;
+  };
+
   const fetchEstoque = useCallback(async (filters: any = {}) => {
     setLoading(true);
     setError(null);
@@ -114,6 +157,12 @@ export const useSupabase = () => {
         query = query.ilike('produto_nome', `%${searchTerm}%`);
       }
 
+      // Filtro de categoria baseado na Classificação Principal
+      if (filters.categoria && filters.categoria !== 'all') {
+        console.log('🔍 Aplicando filtro de categoria:', filters.categoria);
+        query = applyCategoriaFilter(query, filters.categoria);
+      }
+
       // Buscar total de registros primeiro (sem paginação)
       let countQuery = supabase
         .from('estoque_2')
@@ -136,6 +185,12 @@ export const useSupabase = () => {
       if (filters.search && filters.search.trim()) {
         const searchTerm = filters.search.trim().toLowerCase();
         countQuery = countQuery.ilike('produto_nome', `%${searchTerm}%`);
+      }
+
+      // Aplicar filtro de categoria na contagem também
+      if (filters.categoria && filters.categoria !== 'all') {
+        console.log('🔍 Aplicando filtro de categoria na contagem:', filters.categoria);
+        countQuery = applyCategoriaFilter(countQuery, filters.categoria);
       }
 
       console.log('🔍 Executando countQuery...');
@@ -221,11 +276,11 @@ export const useSupabase = () => {
         query = query.eq('ano_mes', filters.periodo);
       }
 
-      // Temporariamente desabilitado até a coluna categoria ser criada no banco
-      // if (filters.categoria && filters.categoria !== 'all') {
-      //   console.log('🔍 Aplicando filtro de categoria:', filters.categoria);
-      //   query = query.eq('categoria', filters.categoria);
-      // }
+      // Filtro de categoria baseado na Classificação Principal
+      if (filters.categoria && filters.categoria !== 'all') {
+        console.log('🔍 Aplicando filtro de categoria:', filters.categoria);
+        query = applyCategoriaFilter(query, filters.categoria);
+      }
 
       console.log('🔍 Executando query...');
       const { data, error } = await query;

@@ -54,7 +54,7 @@ interface EstoqueData {
   'Curva Qtd'?: string;
   'Media Venda Mensal'?: number;
   'Estoque Final Dias'?: number;
-  'Classificacao Principal'?: string;
+      'Classificação Principal'?: string;
   'Preco Venda Medio'?: number;
   'Ultima Venda Dias'?: number;
   'Transferencia Confirmada'?: number;
@@ -435,7 +435,13 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
     const columnMapping: { [key: string]: string } = {};
     Object.keys(headerRow).forEach(key => {
       const headerValue = headerRow[key]?.toString().toLowerCase() || '';
-      console.log(`🔍 Mapeando coluna ${key}: "${headerValue}"`);
+      console.log(`🔍 Processando cabeçalho: "${key}" -> "${headerRow[key]}" (lowercase: "${headerValue}")`);
+      
+      // Debug específico para Classificação Principal
+      if (headerValue.includes('classificação') || headerValue.includes('classificacao')) {
+        console.log(`🔍 Debug - Cabeçalho contém 'classificação': "${headerValue}"`);
+        console.log(`🔍 Debug - Inclui 'principal'? ${headerValue.includes('principal')}`);
+      }
 
       if (headerValue.includes('un. neg.') && !headerValue.includes('apelido')) {
         columnMapping['Un. Neg.'] = key;
@@ -461,6 +467,12 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
       } else if (headerValue.includes('classific') && !headerValue.includes('principal')) {
         columnMapping['Estoque Classific'] = key;
         console.log(`✅ Mapeado 'Estoque Classific' para coluna ${key}`);
+      } else if ((headerValue.includes('classificacao') && headerValue.includes('principal')) || 
+                 (headerValue.includes('classificação') && headerValue.includes('principal')) ||
+                 (headerValue.toLowerCase().includes('classificacao') && headerValue.toLowerCase().includes('principal')) ||
+                 (headerValue.toLowerCase().includes('classificação') && headerValue.toLowerCase().includes('principal'))) {
+        columnMapping['Classificação Principal'] = key;
+        console.log(`✅ Mapeado 'Classificação Principal' para coluna ${key}`);
       } else if (headerValue.includes('preço') || headerValue.includes('ação')) {
         columnMapping['Preço'] = key;
         console.log(`✅ Mapeado 'Preço' para coluna ${key}`);
@@ -496,8 +508,6 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
         columnMapping['Estoque Final Dias'] = key;
       } else if (headerValue.includes('estoque') && headerValue.includes('dias') && !headerValue.includes('final')) {
         columnMapping['Dia Estocad'] = key;
-      } else if (headerValue.includes('classificacao') && headerValue.includes('principal')) {
-        columnMapping['Classificacao Principal'] = key;
       } else if (headerValue.includes('preco') && headerValue.includes('venda') && headerValue.includes('medio')) {
         columnMapping['Preco Venda Medio'] = key;
       } else if (headerValue.includes('ultima') && headerValue.includes('venda') && headerValue.includes('dias')) {
@@ -545,12 +555,21 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
       }
     });
 
+    // Debug do mapeamento de colunas
+    console.log('🔍 Mapeamento final de colunas:', columnMapping);
+    console.log('🔍 Todas as colunas disponíveis na planilha:', Object.keys(data[headerRowIndex] || {}));
+
     // Se não encontrou a coluna Un. Neg., tentar encontrar na primeira coluna
     if (!columnMapping['Un. Neg.']) {
       const firstColumnKey = Object.keys(headerRow)[0];
       if (firstColumnKey) {
         columnMapping['Un. Neg.'] = firstColumnKey;
       }
+    }
+
+    // Debug da primeira linha de dados
+    if (data.length > headerRowIndex + 1) {
+      console.log('🔍 Primeira linha de dados:', data[headerRowIndex + 1]);
     }
 
     // Processar linhas de dados (pular linhas de cabeçalho)
@@ -689,8 +708,8 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
           case 'Estoque Final Dias':
             estoqueItem['Estoque Final Dias'] = parseNumber(value);
             break;
-          case 'Classificacao Principal':
-            estoqueItem['Classificacao Principal'] = value?.toString();
+                  case 'Classificação Principal':
+          estoqueItem['Classificação Principal'] = value?.toString();
             break;
           case 'Preco Venda Medio':
             estoqueItem['Preco Venda Medio'] = parseNumber(value);
@@ -1065,6 +1084,14 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
       const dataEstocagem = hoje.toISOString().split('T')[0];
       const anoMes = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
 
+      // Debug da coluna Classificação Principal
+      console.log(`🔍 Debug - Classificação Principal para ${item['Produto']}:`, {
+        'Valor bruto': item['Classificação Principal'],
+        'Tipo': typeof item['Classificação Principal'],
+        'É falsy?': !item['Classificação Principal'],
+        'Valor final': item['Classificação Principal'] || 'MÉDIO'
+      });
+
       const estoqueItem = {
         unidade_id: unidadeId,
         produto_nome: item['Produto'],
@@ -1081,7 +1108,7 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
         curva_qtd: item['Curva Qtd'] || item['Curva'] || 'C',
         media_venda_mensal: item['Media Venda Mensal'] || item['Media Venda'] || 0,
         estoque_final_dias: item['Estoque Final Dias'] || item['Estoque Final'] || 0,
-        classificacao_principal: item['Classificacao Principal'] || 'MÉDIO',
+        classificacao_principal: item['Classificação Principal'] || 'MÉDIO',
         preco_venda_medio: item['Preco Venda Medio'] || item['Preço'] || 0,
         ultima_venda_dias: item['Ultima Venda Dias'] || 0,
         transferencia_confirmada: item['Transferencia Confirmada'] || 0,

@@ -127,7 +127,7 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({
           >
             <option value="all">Todas as categorias</option>
             <option value="bonificado">Bonificado</option>
-            <option value="etico">Ético</option>
+                            <option value="medicamentos">Medicamentos</option>
             <option value="perfumaria">Perfumaria</option>
             <option value="oficinais">Oficinais</option>
           </select>

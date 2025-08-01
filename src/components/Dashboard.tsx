@@ -110,6 +110,7 @@ const Dashboard: React.FC = () => {
 
   const [faturamento, setFaturamento] = useState<Faturamento[]>([]);
   const [estoque, setEstoque] = useState<Estoque2[]>([]);
+  const [estoqueCompleto, setEstoqueCompleto] = useState<Estoque2[]>([]);
   const [unidades, setUnidades] = useState<Unidade[]>([]);
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
   const [showImportModal, setShowImportModal] = useState(false);
@@ -304,6 +305,17 @@ const Dashboard: React.FC = () => {
       fetchColaboradores(filters)
     ]);
 
+    // Carregar todos os dados de estoque para os cards (sem filtros)
+    const estoqueCompleto = await fetchEstoque({});
+    console.log('📦 Dados completos de estoque carregados:', estoqueCompleto.data?.length || 0);
+    
+    // Usar os dados completos para os cards
+    const estoqueParaCards = estoqueCompleto.data || [];
+    console.log('📦 Dados de estoque para cards (completos):', estoqueParaCards.length);
+    
+    // Salvar os dados completos para usar nos cards
+    setEstoqueCompleto(estoqueParaCards);
+
     // --- FILTRO DE CATEGORIA ---
     // Filtro de categoria implementado - os dados já vêm filtrados do backend
     const faturamentoFiltrado = faturamentoData;
@@ -319,6 +331,12 @@ const Dashboard: React.FC = () => {
       unidade_id: item.unidade_id,
       quantidade: item.quantidade
     })));
+    console.log('🔍 Dados de estoque completos:', estoqueFiltrado);
+    console.log('🔍 Verificando se há dados de estoque:', estoqueFiltrado.length > 0);
+    if (estoqueFiltrado.length > 0) {
+      console.log('🔍 Primeiro item de estoque:', estoqueFiltrado[0]);
+      console.log('🔍 Campos disponíveis:', Object.keys(estoqueFiltrado[0]));
+    }
     
     setFaturamento(faturamentoFiltrado);
     setEstoque(estoqueFiltrado);
@@ -1241,12 +1259,27 @@ const Dashboard: React.FC = () => {
       console.log('📊 Dados de faturamento filtrados:', dadosParaCalculo.length);
     }
 
-    // Filtrar dados de estoque - CORREÇÃO: Simplificar a lógica de filtragem
+    // DADOS DE ESTOQUE PARA CARDS (sempre todos os dados, sem filtro de período)
+    // Usar os dados completos que foram carregados no loadData
+    let estoqueParaCards = estoqueCompleto.length > 0 ? estoqueCompleto : estoque;
+    
+    console.log('📦 Total de dados de estoque:', estoque.length);
+    console.log('📦 Dados completos de estoque:', estoqueCompleto.length);
+    console.log('📦 Usando dados completos de estoque para os cards');
+    console.log('📦 Dados de estoque para cards:', estoqueParaCards.length);
+    console.log('📦 Primeiros 3 itens de estoqueParaCards:', estoqueParaCards.slice(0, 3));
+    console.log('📦 Verificando campos dias_estoque:', estoqueParaCards.slice(0, 3).map((item: any) => ({
+      produto: item.produto_nome,
+      dias_estoque: item.dias_estoque,
+      quantidade: item.quantidade
+    })));
+
+    // DADOS DE ESTOQUE PARA OUTROS CÁLCULOS (com filtro de período)
     let estoqueParaCalculo = estoque;
 
-    // Filtrar por mês se selecionado
+    // Filtrar por mês se selecionado (apenas para outros cálculos, não para os cards)
     if (mesParaFiltrar) {
-      console.log('📊 Filtrando estoque para o mês:', mesParaFiltrar);
+      console.log('📊 Filtrando estoque para outros cálculos:', mesParaFiltrar);
       estoqueParaCalculo = estoque.filter(item => item.ano_mes === mesParaFiltrar);
       console.log('📊 Dados de estoque filtrados por mês:', estoqueParaCalculo.length);
     }
@@ -1271,10 +1304,15 @@ const Dashboard: React.FC = () => {
       console.log('🔍 Dados filtrados por unidade:', dadosParaCalculo.length, 'faturamento,', estoqueParaCalculo.length, 'estoque');
     }
 
-    // Calcular métricas de estoque
-    const diasEstoque = estoqueParaCalculo.length > 0
-      ? estoqueParaCalculo.reduce((acc, item) => acc + (item.dias_estoque || 0), 0) / estoqueParaCalculo.length
+    // Calcular métricas de estoque (sempre com dados mais recentes)
+    const diasEstoque = estoqueParaCards.length > 0
+      ? estoqueParaCards.reduce((acc: number, item: any) => acc + (item.dias_estoque || 0), 0) / estoqueParaCards.length
       : 0;
+
+    console.log('📊 Cálculo de dias no estoque:');
+    console.log('📊 Total de itens em estoqueParaCards:', estoqueParaCards.length);
+    console.log('📊 Soma de dias_estoque:', estoqueParaCards.reduce((acc: number, item: any) => acc + (item.dias_estoque || 0), 0));
+    console.log('📊 Média de dias no estoque:', diasEstoque);
 
     // Calcular total de venda e custo
     const totalVenda = dadosParaCalculo.reduce((acc, item) => acc + item.valor_venda, 0);
@@ -1290,31 +1328,47 @@ const Dashboard: React.FC = () => {
     const cmvTotal = totalCusto;
     const cmvPercent = totalVenda > 0 ? (totalCusto / totalVenda) * 100 : 0;
 
-    // Calcular valor total de estoque: quantidade * preço unitário
-    const valorTotalEstoque = estoqueParaCalculo.reduce((acc, item) => {
+    // Calcular valor total de estoque: quantidade * preço unitário (sempre com dados mais recentes)
+    const valorTotalEstoque = estoqueParaCards.reduce((acc: number, item: any) => {
       const valorItem = (item.quantidade || 0) * (item.valor_estoque || 0);
       return acc + valorItem;
     }, 0);
 
-    // Encontrar produto com maior tempo no estoque
-    const produtoMaiorTempo = estoqueParaCalculo.length > 0
-      ? estoqueParaCalculo.sort((a, b) => (b.dias_estoque || 0) - (a.dias_estoque || 0))[0]
+    // Encontrar produto com maior tempo no estoque (sempre com dados mais recentes)
+    const produtoMaiorTempo = estoqueParaCards.length > 0
+      ? estoqueParaCards.sort((a: any, b: any) => (b.dias_estoque || 0) - (a.dias_estoque || 0))[0]
       : null;
+
+    // Calcular métricas adicionais para os cards de estoque
+    const produtosEmEstoque = estoqueParaCards.filter((item: any) => item.quantidade > 0).length;
+    const totalDeItens = estoqueParaCards.reduce((acc: number, item: any) => acc + (item.quantidade || 0), 0);
 
     console.log('Dias no Estoque:', diasEstoque);
     console.log('Maior Tempo no Estoque:', produtoMaiorTempo ? produtoMaiorTempo.produto_nome : 'N/A');
+    console.log('Produtos em Estoque:', produtosEmEstoque);
+    console.log('Total de Itens:', totalDeItens);
+    console.log('🔍 DEBUG - Verificando se há dados:', {
+      estoqueLength: estoque.length,
+      estoqueParaCardsLength: estoqueParaCards.length,
+      diasEstoque,
+      produtoMaiorTempo: produtoMaiorTempo ? 'SIM' : 'NÃO',
+      produtosEmEstoque,
+      totalDeItens
+    });
 
     return {
       faturamentoTotal: totalVenda,
-      valorTotalEstoque: valorTotalEstoque,
-      diasEstoque: Math.round(diasEstoque),
+      valorTotalEstoque: valorTotalEstoque, // ✅ Sempre usa dados mais recentes do estoque
+      diasEstoque: Math.round(diasEstoque), // ✅ Sempre usa dados mais recentes do estoque
       mediaMargemBruta,
       margemBrutaReal,
       cmvTotal,
       cmvPercent,
-      produtoMaiorTempo
+      produtoMaiorTempo, // ✅ Sempre usa dados mais recentes do estoque
+      produtosEmEstoque, // ✅ Sempre usa dados mais recentes do estoque
+      totalDeItens // ✅ Sempre usa dados mais recentes do estoque
     };
-  }, [faturamento, estoque, selectedMonth, selectedProduct, filters.periodo, filters.unidade]);
+  }, [faturamento, estoque, estoqueCompleto, selectedMonth, selectedProduct, filters.unidade]);
 
   // Função para calcular cores baseadas nos valores (removida pois não é usada)
 
@@ -2034,22 +2088,17 @@ const Dashboard: React.FC = () => {
                     <div>
                       <div className="metric-title">
                         Dias no Estoque
-                        {(selectedMonth || (filters.periodo !== 'all')) && (
-                          <span className="text-xs text-blue-600 ml-1">
-                            (Filtrado: {selectedMonth || filters.periodo})
-                          </span>
-                        )}
                       </div>
                       <div className="metric-value">
-                        {hasProductData() ? metrics.diasEstoque : <span style={{ color: '#ef4444' }}>Sem dados para este produto neste mês/unidade</span>}
+                        {metrics.diasEstoque}
                       </div>
                       <div className="metric-subtitle">Produtos em Estoque</div>
                       <div className="metric-subvalue">
-                        {estoque.length > 0 ? Number(estoque.filter(item => item.quantidade > 0).length).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : '0'}
+                        {metrics.produtosEmEstoque?.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) || '0'}
                       </div>
                       <div className="metric-subtitle">Total de Itens</div>
                       <div className="metric-subvalue">
-                        {Number(estoque.reduce((acc, item) => acc + (item.quantidade || 0), 0)).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                        {metrics.totalDeItens?.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) || '0'}
                       </div>
                     </div>
                     <div className="metric-icon">
@@ -2068,22 +2117,17 @@ const Dashboard: React.FC = () => {
                     <div>
                       <div className="metric-title">
                         Maior Tempo no Estoque
-                        {(selectedMonth || (filters.periodo !== 'all')) && (
-                          <span className="text-xs text-blue-600 ml-1">
-                            (Filtrado: {selectedMonth || filters.periodo})
-                          </span>
-                        )}
                       </div>
                       <div className="metric-value">
-                        {hasProductData() ? metrics.produtoMaiorTempo?.produto_nome : <span style={{ color: '#ef4444' }}>Sem dados para este produto neste mês/unidade</span>}
+                        {metrics.produtoMaiorTempo?.produto_nome || 'N/A'}
                       </div>
                       <div className="metric-subtitle">Tempo em Dias</div>
                       <div className="metric-subvalue">
-                        {hasProductData() && metrics.produtoMaiorTempo ? `${metrics.produtoMaiorTempo.dias_estoque || 0} dias` : 'N/A'}
+                        {metrics.produtoMaiorTempo ? `${metrics.produtoMaiorTempo.dias_estoque || 0} dias` : 'N/A'}
                       </div>
                       <div className="metric-subtitle">Curva</div>
                       <div className="metric-subvalue">
-                        {hasProductData() && metrics.produtoMaiorTempo ? metrics.produtoMaiorTempo.curva_qtd : 'N/A'}
+                        {metrics.produtoMaiorTempo ? metrics.produtoMaiorTempo.curva_qtd : 'N/A'}
                       </div>
                     </div>
                     <div className="metric-icon">

@@ -291,8 +291,8 @@ const Dashboard: React.FC = () => {
       page: currentPage,
       pageSize: itemsPerPage,
       search: debouncedSearchEstoque,
-      // Adicionar filtro de categoria se o modal estiver aberto
-      categoria: showColaboradoresModal ? colaboradoresCategoriaFilter : filters.categoria
+      // Usar filtro de categoria apenas se não for 'all'
+      categoria: colaboradoresCategoriaFilter !== 'all' ? colaboradoresCategoriaFilter : filters.categoria
     };
     
     console.log('🔍 FiltersWithPagination:', filtersWithPagination);
@@ -359,7 +359,7 @@ const Dashboard: React.FC = () => {
         pageSize: estoqueResult.pageSize
       });
     }
-  }, [filters, currentPage, itemsPerPage, debouncedSearchEstoque, showColaboradoresModal, colaboradoresCategoriaFilter, fetchFaturamento, fetchEstoque, fetchUnidades, fetchCMV, fetchColaboradores]);
+  }, [filters, currentPage, itemsPerPage, debouncedSearchEstoque, colaboradoresCategoriaFilter]);
 
   // Debounce para a busca
   useEffect(() => {
@@ -370,9 +370,10 @@ const Dashboard: React.FC = () => {
     return () => clearTimeout(timer);
   }, [searchEstoque]);
 
+  // Carregar dados iniciais
   useEffect(() => {
     loadData();
-  }, [loadData]);
+  }, []);
 
   // Recarregar dados quando os filtros mudarem
   useEffect(() => {
@@ -386,15 +387,15 @@ const Dashboard: React.FC = () => {
       console.log('📅 Limpando selectedMonth');
       setSelectedMonth(null);
     }
-  }, [filters.periodo, filters.unidade, loadData]);
+  }, [filters.periodo, filters.unidade]);
 
   // Recarregar dados quando o filtro de categoria do modal mudar
   useEffect(() => {
-    if (showColaboradoresModal) {
+    if (showColaboradoresModal && colaboradoresCategoriaFilter !== 'all') {
       console.log('🔍 Filtro de categoria do modal mudou:', colaboradoresCategoriaFilter);
       loadData();
     }
-  }, [colaboradoresCategoriaFilter, showColaboradoresModal, loadData]);
+  }, [colaboradoresCategoriaFilter]);
 
   // Resetar filtro se o período selecionado não existir nos dados ou for de 2024
   // (Movido para depois da declaração de availablePeriods e handleFiltersChange)
@@ -755,7 +756,7 @@ const Dashboard: React.FC = () => {
       dias_estoque: produtoRanking.dias_estoque,
       data_atualizacao: new Date().toISOString(),
       data_estocagem: new Date().toISOString(),
-      ano_mes: filters.periodo,
+      ano_mes: '', // Não usar filtro de período para dados de estoque
       necessidade: '',
       estoque_confirmado: 0,
       comprar: 0,
@@ -821,8 +822,11 @@ const Dashboard: React.FC = () => {
   };
 
   const getProdutoDadosPorLoja = (produtoNome: string, fabricante: string) => {
+    // Usar dados completos de estoque para o modal de detalhes
+    const dadosEstoque = estoqueCompleto.length > 0 ? estoqueCompleto : estoque;
+    
     // Filtrar dados de estoque pelo produto específico
-    const dadosProduto = estoque.filter(item => 
+    const dadosProduto = dadosEstoque.filter(item => 
       item.produto_nome === produtoNome && 
       item.fabricante === fabricante
     );
@@ -883,11 +887,8 @@ const Dashboard: React.FC = () => {
 
 
 
-  // Filtro para Valor de Estoque
-  const estoqueComValor = estoque
-    .filter(item =>
-      (!selectedMonth || item.ano_mes === selectedMonth)
-    )
+  // Filtro para Valor de Estoque (sempre usar dados completos)
+  const estoqueComValor = (estoqueCompleto.length > 0 ? estoqueCompleto : estoque)
     .map(item => ({
       id: item.id,
       unidade_id: item.unidade_id,
@@ -1459,18 +1460,10 @@ const Dashboard: React.FC = () => {
       ],
     };
 
-    // Dados para gráfico de dias de estoque por loja
-    let estoqueFiltrado = estoque;
-    if (selectedMonth) {
-      estoqueFiltrado = estoque.filter(item => item.ano_mes === selectedMonth);
-      if (estoqueFiltrado.length === 0) {
-        // Se não houver dados para o mês selecionado, pegar o mês mais recente disponível
-        const mesesDisponiveis = [...new Set(estoque.map(item => item.ano_mes))].sort().reverse();
-        if (mesesDisponiveis.length > 0) {
-          estoqueFiltrado = estoque.filter(item => item.ano_mes === mesesDisponiveis[0]);
-        }
-      }
-    }
+    // Dados para gráfico de dias de estoque por loja (sempre usar dados completos)
+    let estoqueFiltrado = estoqueCompleto.length > 0 ? estoqueCompleto : estoque;
+    
+    // Apenas filtrar por produto se selecionado (não por período)
     if (selectedProduct) {
       estoqueFiltrado = estoqueFiltrado.filter(item => item.produto_nome === selectedProduct);
     }
@@ -1805,15 +1798,12 @@ const Dashboard: React.FC = () => {
 
   // Função para obter produtos rankeados por tempo no estoque
   const getProdutosRankeadosPorTempoEstoque = (searchTerm = '', lojaFilter = 'all') => {
-    if (!estoque.length) return [];
+    // Usar dados completos de estoque para o ranking
+    const dadosEstoque = estoqueCompleto.length > 0 ? estoqueCompleto : estoque;
+    if (!dadosEstoque.length) return [];
 
-    // Filtrar dados baseado nos filtros atuais
-    let estoqueFiltrado = estoque;
-
-    // Filtrar por período
-    if (filters.periodo !== 'all') {
-      estoqueFiltrado = estoqueFiltrado.filter(item => item.ano_mes === filters.periodo);
-    }
+    // Filtrar dados baseado nos filtros atuais (sem período)
+    let estoqueFiltrado = dadosEstoque;
 
     // Filtrar por unidade (filtro principal do dashboard)
     if (filters.unidade !== 'all') {
@@ -2043,7 +2033,10 @@ const Dashboard: React.FC = () => {
                   className="metric-card faturamento"
                   style={{ cursor: 'pointer' }}
                   onClick={() => {
-                    resetModalFilters('faturamento');
+                    // Carregar dados dos modais se ainda não foram carregados
+                    if (modalFaturamentoData.length === 0) {
+                      loadModalData();
+                    }
                     setShowFaturamentoChart(true);
                   }}
                   title="Clique para ver o gráfico de faturamento"
@@ -2137,7 +2130,10 @@ const Dashboard: React.FC = () => {
                 </div>
 
                 <div className="metric-card margem-bruta" style={{ cursor: 'pointer' }} onClick={() => {
-                  resetModalFilters('margemBruta');
+                  // Carregar dados dos modais se ainda não foram carregados
+                  if (modalFaturamentoData.length === 0) {
+                    loadModalData();
+                  }
                   setShowMargemBrutaChart(true);
                 }} title="Clique para ver o gráfico de Margem Bruta">
                   <div className="metric-header">
@@ -2154,7 +2150,10 @@ const Dashboard: React.FC = () => {
                 </div>
 
                 <div className="metric-card cmv" style={{ cursor: 'pointer' }} onClick={() => {
-                  resetModalFilters('cmv');
+                  // Carregar dados dos modais se ainda não foram carregados
+                  if (modalFaturamentoData.length === 0) {
+                    loadModalData();
+                  }
                   setShowCMVChart(true);
                 }} title="Clique para ver o gráfico de CMV">
                   <div className="metric-header">
@@ -2181,7 +2180,10 @@ const Dashboard: React.FC = () => {
                   className="metric-card colaboradores"
                   style={{ cursor: 'pointer' }}
                   onClick={() => {
-                    resetModalFilters('colaboradores');
+                    // Carregar dados dos modais se ainda não foram carregados
+                    if (modalFaturamentoData.length === 0) {
+                      loadModalData();
+                    }
                     setShowColaboradoresListModal(true);
                   }}
                   title="Clique para ver a lista completa de colaboradores organizados por loja"
@@ -2211,7 +2213,10 @@ const Dashboard: React.FC = () => {
                   className="metric-card ticket-medio"
                   style={{ cursor: 'pointer' }}
                   onClick={() => {
-                    resetModalFilters('colaboradores');
+                    // Carregar dados dos modais se ainda não foram carregados
+                    if (modalFaturamentoData.length === 0) {
+                      loadModalData();
+                    }
                     setShowQuantidadeVendasModal(true);
                   }}
                   title="Clique para ver a quantidade de vendas por colaborador"
@@ -2456,7 +2461,9 @@ const Dashboard: React.FC = () => {
                         onBarClick={handleFaturamentoBarClick}
                         getTooltipExtra={(label) => {
                           if (!selectedProduct) return undefined;
-                          const estoqueDoProduto = estoque.filter(item => item.ano_mes === label && item.produto_nome === selectedProduct && (filters.unidade === 'all' || String(item.unidade_id) === String(filters.unidade)));
+                          // Usar dados completos de estoque para o tooltip
+                          const dadosEstoque = estoqueCompleto.length > 0 ? estoqueCompleto : estoque;
+                          const estoqueDoProduto = dadosEstoque.filter(item => item.produto_nome === selectedProduct && (filters.unidade === 'all' || String(item.unidade_id) === String(filters.unidade)));
                           if (estoqueDoProduto.length === 0) return 'Sem dados de estoque';
                           const mediaDias = Math.round(estoqueDoProduto.reduce((acc, item) => acc + (item.dias_estoque || 0), 0) / estoqueDoProduto.length);
                           return `Dias no estoque: ${mediaDias}`;

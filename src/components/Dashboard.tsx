@@ -145,6 +145,7 @@ const Dashboard: React.FC = () => {
   const [colabModalPeriodo, setColabModalPeriodo] = useState('all');
   const [colabModalLojasSelecionadas, setColabModalLojasSelecionadas] = useState<string[]>([]);
   const [dropdownColabLojasAberto, setDropdownColabLojasAberto] = useState(false);
+  const [colaboradoresCategoriaFilter, setColaboradoresCategoriaFilter] = useState('all');
   const [showColaboradoresListModal, setShowColaboradoresListModal] = useState(false);
   const [colaboradoresListSearch, setColaboradoresListSearch] = useState('');
   const [colaboradoresListLojaFilter, setColaboradoresListLojaFilter] = useState('all');
@@ -288,7 +289,9 @@ const Dashboard: React.FC = () => {
       ...filters,
       page: currentPage,
       pageSize: itemsPerPage,
-      search: debouncedSearchEstoque
+      search: debouncedSearchEstoque,
+      // Adicionar filtro de categoria se o modal estiver aberto
+      categoria: showColaboradoresModal ? colaboradoresCategoriaFilter : filters.categoria
     };
     
     console.log('🔍 FiltersWithPagination:', filtersWithPagination);
@@ -338,7 +341,7 @@ const Dashboard: React.FC = () => {
         pageSize: estoqueResult.pageSize
       });
     }
-  }, [filters, currentPage, itemsPerPage, debouncedSearchEstoque, fetchFaturamento, fetchEstoque, fetchUnidades, fetchCMV, fetchColaboradores]);
+  }, [filters, currentPage, itemsPerPage, debouncedSearchEstoque, showColaboradoresModal, colaboradoresCategoriaFilter, fetchFaturamento, fetchEstoque, fetchUnidades, fetchCMV, fetchColaboradores]);
 
   // Debounce para a busca
   useEffect(() => {
@@ -366,6 +369,14 @@ const Dashboard: React.FC = () => {
       setSelectedMonth(null);
     }
   }, [filters.periodo, filters.unidade, loadData]);
+
+  // Recarregar dados quando o filtro de categoria do modal mudar
+  useEffect(() => {
+    if (showColaboradoresModal) {
+      console.log('🔍 Filtro de categoria do modal mudou:', colaboradoresCategoriaFilter);
+      loadData();
+    }
+  }, [colaboradoresCategoriaFilter, showColaboradoresModal, loadData]);
 
   // Resetar filtro se o período selecionado não existir nos dados ou for de 2024
   // (Movido para depois da declaração de availablePeriods e handleFiltersChange)
@@ -3385,11 +3396,54 @@ const Dashboard: React.FC = () => {
                 >
                   <BarChart3 size={22} />
                 </button>
-                <button onClick={() => setShowColaboradoresModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#ef4444' }}>×</button>
+                <button onClick={() => {
+                  setShowColaboradoresModal(false);
+                  setColaboradoresCategoriaFilter('all'); // Resetar filtro de categoria
+                }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#ef4444' }}>×</button>
               </div>
             </div>
             {/* Filtros do modal de colaboradores/empresas */}
             <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
+              {/* Filtro de categoria */}
+              <div style={{ minWidth: 180 }}>
+                <select
+                  value={colaboradoresCategoriaFilter}
+                  onChange={(e) => setColaboradoresCategoriaFilter(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    border: '1px solid #222',
+                    background: '#fff',
+                    fontSize: 16,
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="all">Todas as classificações</option>
+                  <option value="bonificado">Bonificado</option>
+                  <option value="medicamentos">Medicamentos</option>
+                  <option value="perfumaria">Perfumaria</option>
+                  <option value="oficinais">Oficinais</option>
+                </select>
+              </div>
+              
+              {/* Botão Limpar */}
+              <button
+                onClick={() => setColaboradoresCategoriaFilter('all')}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: 8,
+                  border: '1px solid #222',
+                  background: '#fff',
+                  fontSize: 14,
+                  cursor: 'pointer',
+                  color: '#666'
+                }}
+                title="Limpar filtro de categoria"
+              >
+                Limpar
+              </button>
+              
               <div className="dropdown-lojas-modal" style={{ position: 'relative', minWidth: 180, maxWidth: '100vw', width: '100%' }}>
                 <button
                   type="button"

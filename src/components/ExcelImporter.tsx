@@ -129,8 +129,9 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
 
     // Verificar se é planilha de colaboradores baseado no conteúdo (PRIORIDADE ALTA)
     const colaboradoresIndicators = [
-      'usuário:', 'colaborador', 'análise de venda por item', 'período',
-      'total usuário', 'análise de venda por item', 'análise de venda'
+      'usuário:', 'colaborador', 'user:', 'análise de venda por item', 'período',
+      'total usuário', 'análise de venda por item', 'análise de venda',
+      'abraao lincoln', 'batist', 'usuário: abraao'
     ];
 
     const hasColaboradoresContent = colaboradoresIndicators.some(indicator =>
@@ -149,7 +150,7 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
       'est. mín', 'origem est. mín.', 'dia estocagem', 'custo médio',
       'curva valor', 'custo x necessidade', 'custo x estoque', 'ruptura venda',
       'necessidade qtd', 'percentual suprida qtd', 'compra confirmada', 'encomenda',
-      'falta:', 'ruptura', 'encomenda', 'tipo necessidade', 'un. neg.', 'conf. comprar',
+      'falta:', 'ruptura', 'encomenda', 'tipo necessidade', 'conf. comprar',
       'média venda mensal', 'estoque (dias)', 'classificação principal', 'preço venda médio',
       'estoque final (dias)', 'últ. venda (dias)', 'transf. conf.', 'comprar (dias)',
       'necessidade (dias)', 'últ. compra (dias)', 'apelido un. neg.', 'fornecedor últ. compra',
@@ -166,21 +167,17 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
     // Verificar se é planilha de faturamento baseado no conteúdo
     const faturamentoIndicators = [
       'ano-mês', 'itens', 'venda', 'desconto', 'lucro',
-      'percentual', 'tot.', 'valor'
+      'percentual', 'tot.', 'valor', 'cód. un. neg.', 'cód. un. neg',
+      'análise de venda por item período', 'análise de venda por item',
+      '% tot.', '% desconto', '% custo', '% lucro'
     ];
 
     const hasFaturamentoContent = faturamentoIndicators.some(indicator =>
       allValuesString.includes(indicator)
     );
 
-    // PRIORIZAR ESTOQUE se houver indicadores específicos de produtos
-    if (hasEstoqueContent) {
-      console.log('📦 Planilha detectada como ESTOQUE');
-      console.log('🔍 Indicadores encontrados:', estoqueIndicators.filter(indicator => allValuesString.includes(indicator)));
-      return 'estoque';
-    }
-    // Se não tem indicadores específicos de estoque, verificar colaboradores
-    else if (hasColaboradoresContent) {
+    // PRIORIZAR COLABORADORES se houver indicadores específicos de usuário
+    if (hasColaboradoresContent) {
       console.log('👥 Planilha detectada como COLABORADORES');
       console.log('🔍 Indicadores encontrados:', colaboradoresIndicators.filter(indicator => allValuesString.includes(indicator)));
       return 'colaboradores';
@@ -191,10 +188,30 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
       console.log('🔍 Indicadores encontrados:', faturamentoIndicators.filter(indicator => allValuesString.includes(indicator)));
       return 'faturamento';
     }
+    // Se não tem indicadores específicos de faturamento, verificar estoque
+    else if (hasEstoqueContent) {
+      console.log('📦 Planilha detectada como ESTOQUE');
+      console.log('🔍 Indicadores encontrados:', estoqueIndicators.filter(indicator => allValuesString.includes(indicator)));
+      return 'estoque';
+    }
 
     // Se não detectou nenhum tipo específico, verificar se é colaboradores por padrão
     // baseado no nome da aba ou conteúdo específico
-    if (allValuesString.includes('análise') || allValuesString.includes('venda') || allValuesString.includes('item')) {
+    if (allValuesString.includes('usuário') || allValuesString.includes('colaborador') || allValuesString.includes('user')) {
+      console.log('👥 Planilha detectada como COLABORADORES (fallback)');
+      console.log('🔍 Conteúdo da planilha contém indicadores de colaboradores');
+      return 'colaboradores';
+    }
+    // Se não detectou nenhum tipo específico, verificar se é faturamento por padrão
+    // baseado no nome da aba ou conteúdo específico
+    else if (allValuesString.includes('análise de venda por item') || allValuesString.includes('faturamento')) {
+      console.log('💰 Planilha detectada como FATURAMENTO (fallback)');
+      console.log('🔍 Conteúdo da planilha contém indicadores de faturamento');
+      return 'faturamento';
+    }
+    // Se não detectou nenhum tipo específico, verificar se é colaboradores por padrão
+    // baseado no nome da aba ou conteúdo específico
+    else if (allValuesString.includes('análise') || allValuesString.includes('venda') || allValuesString.includes('item')) {
       console.log('👥 Planilha detectada como COLABORADORES (fallback)');
       console.log('🔍 Conteúdo da planilha contém indicadores de colaboradores');
       return 'colaboradores';
@@ -868,8 +885,13 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
     let currentUnitCode = initialUnitCode;
     const processedKeys = new Set(); // Para evitar processar a mesma combinação múltiplas vezes
 
+    console.log('🔍 Iniciando parse de dados de faturamento...');
+    console.log('📋 Total de linhas:', data.length);
+    console.log('📋 Primeiras 3 linhas:', data.slice(0, 3));
+
     for (let i = 0; i < data.length; i++) {
       const row = data[i];
+      console.log(`🔍 Processando linha ${i + 1}:`, row);
 
       // Verificar se é uma linha de cabeçalho de unidade
       // Pode estar em qualquer coluna, então vamos verificar todas
@@ -878,9 +900,11 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
       );
 
       if (unitCodeMatch) {
+        console.log(`✅ Encontrado código de unidade: ${unitCodeMatch}`);
         const match = unitCodeMatch.toString().match(/Cód\. Un\. Neg\.:\s*(\d+)/);
         if (match) {
           currentUnitCode = match[1];
+          console.log(`✅ Código de unidade extraído: ${currentUnitCode}`);
         }
         continue;
       }
@@ -888,34 +912,48 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
       // Verificar se é uma linha de dados válida (tem ano-mês)
       // Mapear colunas __EMPTY para os nomes corretos
       let anoMes = row['__EMPTY'] || row['Ano-mês'];
+      console.log(`🔍 Tentando encontrar ano-mês: __EMPTY=${row['__EMPTY']}, Ano-mês=${row['Ano-mês']}`);
 
       // Se não encontrou, verificar se a primeira chave é uma data (Page 2)
       if (!anoMes) {
         const firstKey = Object.keys(row)[0];
+        console.log(`🔍 Primeira chave: ${firstKey}`);
         if (firstKey && firstKey.toString().match(/^\d{4}-\d{2}$/)) {
           // Na Page 2, usar o VALOR da primeira coluna como data
           anoMes = row[firstKey];
+          console.log(`🔍 Encontrado ano-mês na primeira chave: ${anoMes}`);
         }
       }
 
       // Se não encontrou na coluna padrão, procurar em outras colunas
       if (!anoMes) {
+        console.log(`🔍 Procurando ano-mês em outras colunas...`);
         // Procurar por colunas que contêm datas no formato YYYY-MM
         const dateColumns = Object.keys(row).filter(key =>
           key && key.toString().match(/^\d{4}-\d{2}$/)
         );
+        console.log(`🔍 Colunas com data encontradas:`, dateColumns);
         if (dateColumns.length > 0) {
           // Na Page 2, TODAS as linhas são dados reais
           // O VALOR da primeira coluna é a data real de cada linha
           anoMes = row[dateColumns[0]];
+          console.log(`🔍 Encontrado ano-mês em coluna de data: ${anoMes}`);
         } else {
           // Se não encontrou colunas com data, verificar se a primeira chave é uma data
           const firstKey = Object.keys(row)[0];
+          console.log(`🔍 Primeira chave como possível data: ${firstKey}`);
           if (firstKey && firstKey.toString().match(/^\d{4}-\d{2}$/)) {
             // A primeira chave é uma data, usar ela diretamente
             anoMes = firstKey;
+            console.log(`🔍 Usando primeira chave como data: ${anoMes}`);
           }
         }
+      }
+
+      // Se ainda não encontrou ano-mês, pular a linha
+      if (!anoMes) {
+        console.log(`⚠️ Linha ${i + 1} ignorada - sem ano-mês válido`);
+        continue;
       }
 
       // Se encontrou uma data mas não tem unidade válida, usar a última unidade da Page 1
@@ -933,17 +971,21 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
         anoMes.toString().match(/^\d{2}\/\d{2}\/\d{4}$/) ||
         anoMes.toString().match(/^\d{4}\/\d{2}$/)
       )) {
+        console.log(`✅ Encontrado ano-mês válido: ${anoMes}`);
         // Verificar se temos uma unidade válida
         if (!currentUnitCode) {
+          console.log(`⚠️ Linha ${i + 1} ignorada - sem código de unidade`);
           continue;
         }
 
         // Verificar se já processamos esta combinação de data e unidade
         const key = `${currentUnitCode}-${anoMes}`;
         if (processedKeys.has(key)) {
+          console.log(`⚠️ Linha ${i + 1} ignorada - combinação já processada: ${key}`);
           continue; // Pular se já processamos esta combinação
         }
         processedKeys.add(key);
+        console.log(`✅ Processando linha ${i + 1} - unidade: ${currentUnitCode}, data: ${anoMes}`);
 
         // Normalizar formato da data
         let dataNormalizada = anoMes.toString();
@@ -995,10 +1037,19 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
         faturamentoItem['Ano-mês'] = dataReal || dataNormalizada;
         faturamentoItem['Cód. Un. Neg.'] = currentUnitCode;
 
+        console.log(`✅ Dados processados com sucesso:`, {
+          'Ano-mês': faturamentoItem['Ano-mês'],
+          'Itens': faturamentoItem['Itens'],
+          'Venda': faturamentoItem['Venda'],
+          'Cód. Un. Neg.': currentUnitCode
+        });
+
         parsedData.push(faturamentoItem);
       }
     }
 
+    console.log(`📊 Resumo do processamento: ${parsedData.length} registros processados`);
+    console.log(`📊 Código de unidade final: ${currentUnitCode}`);
     return { data: parsedData, currentUnitCode };
   };
 

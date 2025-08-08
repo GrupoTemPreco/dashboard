@@ -118,111 +118,145 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
   };
 
   // Função para detectar o tipo de planilha baseado nas colunas
-  const detectSheetType = (data: any[]): 'faturamento' | 'estoque' | 'colaboradores' | 'unknown' => {
+  const detectSheetType = (
+    data: any[],
+    sheetName?: string,
+    fileName?: string
+  ): 'faturamento' | 'estoque' | 'colaboradores' | 'unknown' => {
     if (data.length === 0) return 'unknown';
 
-    // Analisar o conteúdo das células, não apenas os nomes das colunas
+    const normalize = (str: any): string =>
+      (str?.toString() || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim();
+
+    const sheetNameNormalized = normalize(sheetName || '');
+    const fileNameNormalized = normalize(fileName || '');
+
+    // Regra pedida: identificar pelo nome do ARQUIVO com prioridade máxima
+    if (fileNameNormalized) {
+      if (fileNameNormalized.includes('estoque')) {
+        console.log('📄 Nome do arquivo indica ESTOQUE');
+        return 'estoque';
+      }
+      if (fileNameNormalized.includes('colab')) {
+        console.log('📄 Nome do arquivo indica COLABORADORES');
+        return 'colaboradores';
+      }
+      if (fileNameNormalized.includes('faturamento') || fileNameNormalized.includes('fatur')) {
+        console.log('📄 Nome do arquivo indica FATURAMENTO');
+        return 'faturamento';
+      }
+    }
+
+    // Regra pedida: identificar pelo nome da ABA com prioridade máxima
+    if (sheetNameNormalized) {
+      if (sheetNameNormalized.includes('estoque')) {
+        console.log('🏷️ Nome da aba indica ESTOQUE');
+        return 'estoque';
+      }
+      if (sheetNameNormalized.includes('colab')) {
+        console.log('🏷️ Nome da aba indica COLABORADORES');
+        return 'colaboradores';
+      }
+      if (sheetNameNormalized.includes('faturamento') || sheetNameNormalized.includes('fatur')) {
+        console.log('🏷️ Nome da aba indica FATURAMENTO');
+        return 'faturamento';
+      }
+    }
+
+    // Analisar o conteúdo das células e cabeçalhos
     const allValues = data.flatMap(row => Object.values(row));
-    const allValuesString = allValues.join(' ').toLowerCase();
+    const allValuesString = allValues.map(v => normalize(v)).join(' ');
+    const firstRows = data.slice(0, 10);
+    const headerCandidates = firstRows.flatMap(row => Object.keys(row));
+    const headersNormalized = headerCandidates.map(h => normalize(h));
 
-    console.log('🔍 DEBUG - Conteúdo da planilha:', allValuesString.substring(0, 500) + '...');
-    console.log('🔍 DEBUG - Primeiras 5 linhas:', data.slice(0, 5));
+    console.log('🔍 DEBUG - Conteúdo normalizado:', allValuesString.substring(0, 500) + '...');
+    console.log('🔍 DEBUG - Cabeçalhos normalizados:', headersNormalized.slice(0, 20));
 
-    // Verificar se é planilha de estoque baseado no conteúdo (PRIORIDADE ALTA)
+    // Indicadores normalizados
     const estoqueIndicators = [
-      'produto', 'estoque', 'curva', 'preço', 'ação',
+      'produto', 'estoque', 'curva', 'preco', 'acao',
       'media venda', 'estoque classific', 'dias', 'ult. venda', 'ult. compra',
-      'estoque final', 'dia estocad', 'sugrida', 'necessidade', 'estoque conf.',
-      'comprar', 'curva qtd', 'média venda mensal', 'estoque (dias)', 'classificação principal',
-      'preço venda médio', 'estoque final (dias)', 'últ. venda (dias)', 'transf. conf.',
-      'comprar (dias)', 'necessidade (dias)', 'últ. compra (dias)', 'apelido un. neg.',
-      'fornecedor últ. compra', 'média venda diária', 'fabricante', 'qtd. demanda',
-      'est. mín', 'origem est. mín.', 'dia estocagem', 'custo médio',
+      'estoque final', 'dia estocad', 'sugrida', 'necessidade', 'estoque conf',
+      'comprar', 'curva qtd', 'media venda mensal', 'estoque (dias)', 'classificacao principal',
+      'preco venda medio', 'estoque final (dias)', 'ult. venda (dias)', 'transf. conf',
+      'comprar (dias)', 'necessidade (dias)', 'ult. compra (dias)', 'apelido un. neg',
+      'fornecedor ult. compra', 'media venda diaria', 'fabricante', 'qtd. demanda',
+      'est. min', 'origem est. min', 'dia estocagem', 'custo medio',
       'curva valor', 'custo x necessidade', 'custo x estoque', 'ruptura venda',
-      'necessidade qtd', 'percentual suprida qtd', 'compra confirmada', 'encomenda',
-      'falta:', 'ruptura', 'encomenda', 'tipo necessidade', 'conf. comprar',
-      'média venda mensal', 'estoque (dias)', 'classificação principal', 'preço venda médio',
-      'estoque final (dias)', 'últ. venda (dias)', 'transf. conf.', 'comprar (dias)',
-      'necessidade (dias)', 'últ. compra (dias)', 'apelido un. neg.', 'fornecedor últ. compra',
-      'média venda diária', 'fabricante', 'qtd. demanda', 'est. mín', 'origem est. mín.',
-      'dia estocagem', 'custo', 'custo médio', 'curva valor', 'custo x necessidade',
-      'custo x estoque', 'ruptura venda', 'necessidade qtd', 'percentual suprida qtd',
-      'compra confirmada', 'encomenda', 'nevralgex', 'dipirona', 'sildenafila', 'soro fisiologico',
-      'lixa de unha', 'excesso', 'falta', 'demanda', 'drogaria', 'ultra xbrothers'
+      'necessidade qtd', 'percentual suprida qtd', 'compra confirmada', 'encomenda'
     ];
 
-    const hasEstoqueContent = estoqueIndicators.some(indicator =>
-      allValuesString.includes(indicator)
-    );
-
-    // Verificar se é planilha de colaboradores baseado no conteúdo (PRIORIDADE MÉDIA)
     const colaboradoresIndicators = [
-      'usuário:', 'colaborador', 'user:', 'análise de venda por item', 'período',
-      'total usuário', 'análise de venda por item', 'análise de venda',
-      'abraao lincoln', 'batist', 'usuário: abraao'
+      'usuario:', 'colaborador', 'user:', 'analise de venda por item', 'periodo',
+      'total usuario', 'total do usuario', 'vendedor:'
     ];
 
-    const hasColaboradoresContent = colaboradoresIndicators.some(indicator =>
-      allValuesString.includes(indicator)
-    );
-
-    // Verificar se é planilha de faturamento baseado no conteúdo
     const faturamentoIndicators = [
-      'ano-mês', 'itens', 'venda', 'desconto', 'lucro',
-      'percentual', 'tot.', 'valor', 'cód. un. neg.', 'cód. un. neg',
-      'análise de venda por item período', 'análise de venda por item',
+      'ano-mes', 'itens', 'venda', 'desconto', 'lucro',
+      'percentual', 'tot.', 'valor', 'cod. un. neg', 'cod un neg',
       '% tot.', '% desconto', '% custo', '% lucro'
     ];
 
-    const hasFaturamentoContent = faturamentoIndicators.some(indicator =>
-      allValuesString.includes(indicator)
-    );
+    // Scoring por quantidade de indicadores encontrados
+    const countMatches = (indicators: string[]): number =>
+      indicators.reduce((acc, ind) => acc + (allValuesString.includes(ind) ? 1 : 0), 0);
 
-    // PRIORIZAR ESTOQUE se houver indicadores específicos de estoque
-    if (hasEstoqueContent) {
+    const estoqueScore = countMatches(estoqueIndicators)
+      + (headersNormalized.some(h => h.includes('produto')) ? 1 : 0)
+      + (headersNormalized.some(h => h.includes('un. neg') || h.includes('unidade')) ? 1 : 0)
+      + (sheetNameNormalized.includes('estoque') ? 2 : 0);
+
+    const colaboradoresScore = countMatches(colaboradoresIndicators)
+      + (allValuesString.includes('ano-mes:') ? 1 : 0)
+      + (allValuesString.includes('total usuario') ? 1 : 0)
+      + (sheetNameNormalized.includes('colab') || sheetNameNormalized.includes('colaborador') ? 2 : 0);
+
+    // Para faturamento exigimos combinação mais forte (evitar falso positivo por "venda")
+    const faturamentoStrongSignals = (
+      (allValuesString.includes('ano-mes') || headersNormalized.includes('ano-mes')) &&
+      (allValuesString.includes('cod. un. neg') || headersNormalized.some(h => h.includes('cod') && h.includes('un') && h.includes('neg')))
+    ) ? 2 : 0;
+
+    const faturamentoScore = countMatches(faturamentoIndicators)
+      + faturamentoStrongSignals
+      + ((sheetNameNormalized.includes('fatur') || sheetNameNormalized.includes('venda')) ? 1 : 0);
+
+    console.log('🧮 Scores → Estoque:', estoqueScore, '| Colaboradores:', colaboradoresScore, '| Faturamento:', faturamentoScore);
+
+    // Decisão com prioridade por maior score; empate: estoque > colaboradores > faturamento
+    const maxScore = Math.max(estoqueScore, colaboradoresScore, faturamentoScore);
+    if (maxScore === 0) {
+      // Fallback por combinação de termos
+      if ((allValuesString.includes('produto') && allValuesString.includes('estoque')) || headersNormalized.includes('produto')) {
+        console.log('📦 Fallback: detectado ESTOQUE por combinação');
+        return 'estoque';
+      }
+      if (allValuesString.includes('usuario:') || allValuesString.includes('colaborador')) {
+        console.log('👥 Fallback: detectado COLABORADORES por termos');
+        return 'colaboradores';
+      }
+      if (allValuesString.includes('ano-mes') && allValuesString.includes('venda')) {
+        console.log('💰 Fallback: detectado FATURAMENTO por combinação');
+        return 'faturamento';
+      }
+      return 'unknown';
+    }
+
+    if (estoqueScore === maxScore) {
       console.log('📦 Planilha detectada como ESTOQUE');
-      console.log('🔍 Indicadores encontrados:', estoqueIndicators.filter(indicator => allValuesString.includes(indicator)));
       return 'estoque';
     }
-    // Se não tem indicadores específicos de estoque, verificar colaboradores
-    else if (hasColaboradoresContent) {
+    if (colaboradoresScore === maxScore) {
       console.log('👥 Planilha detectada como COLABORADORES');
-      console.log('🔍 Indicadores encontrados:', colaboradoresIndicators.filter(indicator => allValuesString.includes(indicator)));
       return 'colaboradores';
     }
-    // Se não tem indicadores específicos de colaboradores, verificar faturamento
-    else if (hasFaturamentoContent) {
-      console.log('💰 Planilha detectada como FATURAMENTO');
-      console.log('🔍 Indicadores encontrados:', faturamentoIndicators.filter(indicator => allValuesString.includes(indicator)));
-      return 'faturamento';
-    }
-
-    // Se não detectou nenhum tipo específico, verificar fallbacks
-    if (allValuesString.includes('produto') || allValuesString.includes('estoque') || allValuesString.includes('fabricante')) {
-      console.log('📦 Planilha detectada como ESTOQUE (fallback)');
-      console.log('🔍 Conteúdo da planilha contém indicadores de estoque');
-      return 'estoque';
-    }
-    // Se não detectou nenhum tipo específico, verificar se é colaboradores por padrão
-    else if (allValuesString.includes('usuário') || allValuesString.includes('colaborador') || allValuesString.includes('user')) {
-      console.log('👥 Planilha detectada como COLABORADORES (fallback)');
-      console.log('🔍 Conteúdo da planilha contém indicadores de colaboradores');
-      return 'colaboradores';
-    }
-    // Se não detectou nenhum tipo específico, verificar se é faturamento por padrão
-    else if (allValuesString.includes('análise de venda por item') || allValuesString.includes('faturamento')) {
-      console.log('💰 Planilha detectada como FATURAMENTO (fallback)');
-      console.log('🔍 Conteúdo da planilha contém indicadores de faturamento');
-      return 'faturamento';
-    }
-    // Se não detectou nenhum tipo específico, verificar se é colaboradores por padrão
-    else if (allValuesString.includes('análise') || allValuesString.includes('venda') || allValuesString.includes('item')) {
-      console.log('👥 Planilha detectada como COLABORADORES (fallback)');
-      console.log('🔍 Conteúdo da planilha contém indicadores de colaboradores');
-      return 'colaboradores';
-    }
-
-    return 'unknown';
+    console.log('💰 Planilha detectada como FATURAMENTO');
+    return 'faturamento';
   };
 
   // Função para parsear dados de colaboradores
@@ -1828,7 +1862,7 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
     if (!file) return;
 
     try {
-      console.log('📁 Arquivo selecionado:', file.name, file.type);
+      console.log('📁 Arquivo selecionado:', file?.name, file?.type);
 
       const reader = new FileReader();
       reader.onload = async (e) => {
@@ -1850,8 +1884,8 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
 
           console.log(`📋 Processando aba: ${sheetName}`);
 
-          // Detectar tipo da planilha
-          const sheetType = detectSheetType(jsonData);
+          // Detectar tipo da planilha (usando também o nome da aba)
+          const sheetType = detectSheetType(jsonData, sheetName);
 
           if (sheetType === 'estoque') {
             const estoqueData = parseEstoqueData(jsonData);
@@ -1929,7 +1963,7 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
           </label>
           {file && (
             <p className="mt-2 text-sm text-gray-600">
-              Arquivo selecionado: {file.name}
+              Arquivo selecionado: {file?.name}
             </p>
           )}
         </div>
@@ -1959,18 +1993,18 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
 
         {/* Result Message */}
         {result && (
-          <div className={`rounded-md p-4 ${result.success
+          <div className={`rounded-md p-4 ${result?.success
             ? 'bg-green-50 border border-green-200'
             : 'bg-red-50 border border-red-200'
             }`}>
             <div className="flex items-center">
-              {result.success ? (
+              {result?.success ? (
                 <CheckCircle className="h-5 w-5 text-green-400 mr-2" />
               ) : (
                 <AlertTriangle className="h-5 w-5 text-red-400 mr-2" />
               )}
-              <p className={result.success ? 'text-green-700' : 'text-red-700'}>
-                {result.message}
+              <p className={result?.success ? 'text-green-700' : 'text-red-700'}>
+                {result?.message}
               </p>
             </div>
           </div>
@@ -2054,7 +2088,7 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
           </label>
           {file && (
             <p className="mt-2 text-sm text-gray-600">
-              Arquivo selecionado: {file.name}
+              Arquivo selecionado: {file?.name}
             </p>
           )}
         </div>
@@ -2084,18 +2118,18 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
 
         {/* Result Message */}
         {result && (
-          <div className={`rounded-md p-4 ${result.success
+          <div className={`rounded-md p-4 ${result?.success
             ? 'bg-green-50 border border-green-200'
             : 'bg-red-50 border border-red-200'
             }`}>
             <div className="flex items-center">
-              {result.success ? (
+              {result?.success ? (
                 <CheckCircle className="h-5 w-5 text-green-400 mr-2" />
               ) : (
                 <AlertTriangle className="h-5 w-5 text-red-400 mr-2" />
               )}
-              <p className={result.success ? 'text-green-700' : 'text-red-700'}>
-                {result.message}
+              <p className={result?.success ? 'text-green-700' : 'text-red-700'}>
+                {result?.message}
               </p>
             </div>
           </div>

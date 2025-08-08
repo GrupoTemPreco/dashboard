@@ -522,34 +522,7 @@ const Dashboard: React.FC = () => {
     console.log('📊 Dados dos modais carregados - faturamento:', faturamentoData.length, 'cmv:', cmvData.length, 'colaboradores:', colaboradoresData.length);
   };
 
-  // Função para resetar filtros dos modais para valores padrão
-  const resetModalFilters = async (modalType: 'faturamento' | 'cmv' | 'margemBruta' | 'colaboradores') => {
-    console.log(`🔄 Resetando filtros do modal ${modalType} para valores padrão`);
 
-    // Carregar dados completos para os modais se ainda não foram carregados
-    if (modalFaturamentoData.length === 0) {
-      await loadModalData();
-    }
-
-    switch (modalType) {
-      case 'faturamento':
-        setFaturamentoModalPeriodo('all');
-        setFaturamentoModalLojasSelecionadas([]);
-        break;
-      case 'cmv':
-        setCmvModalPeriodo('all');
-        setCmvModalLojasSelecionadas([]);
-        break;
-      case 'margemBruta':
-        setMargemBrutaModalPeriodo('all');
-        setMargemBrutaModalLojasSelecionadas([]);
-        break;
-      case 'colaboradores':
-        setColabModalPeriodo('all');
-        setColabModalLojasSelecionadas([]);
-        break;
-    }
-  };
 
   // Funções auxiliares para gerenciar checkboxes dos modais
   const handleSelectAllLojas = (modalType: 'faturamento' | 'cmv' | 'margemBruta' | 'colaboradores', checked: boolean) => {
@@ -1662,22 +1635,7 @@ const Dashboard: React.FC = () => {
     }
   }, [faturamento, availablePeriods, filters, handleFiltersChange]);
 
-  // Função utilitária para checar se há dados para o produto selecionado no mês/unidade
-  const hasProductData = () => {
-    if (!selectedProduct) return true;
 
-    // Usar a mesma lógica de filtragem da função metrics
-    const mesParaFiltrar = selectedMonth || (filters.periodo !== 'all' ? filters.periodo : null);
-
-    // Verifica se existe algum item de estoque para o produto filtrado
-    return estoque.some(item => {
-      const produtoOk = item.produto_nome === selectedProduct;
-      const unidadeOk = filters.unidade === 'all' || String(item.unidade_id) === String(filters.unidade);
-      const mesOk = !mesParaFiltrar || item.ano_mes === mesParaFiltrar;
-
-      return produtoOk && unidadeOk && mesOk;
-    });
-  };
 
   // Função para capitalizar nomes (primeira letra de cada palavra)
   const capitalizeName = (name: string) => {
@@ -2552,7 +2510,7 @@ const Dashboard: React.FC = () => {
                           };
                         })()}
                         onBarClick={handleFaturamentoBarClick}
-                        getTooltipExtra={(label) => {
+                        getTooltipExtra={(_label) => {
                           if (!selectedProduct) return undefined;
                           // Usar dados completos de estoque para o tooltip
                           const dadosEstoque = estoqueCompleto.length > 0 ? estoqueCompleto : estoque;

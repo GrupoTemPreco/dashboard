@@ -26,7 +26,7 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({ className = '' }) =
       }
 
       // Teste de conexão simples
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('unidades')
         .select('*')
         .limit(1);

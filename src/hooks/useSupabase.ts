@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Faturamento, VendaItem, Unidade, Colaborador } from '../types';
 
@@ -6,12 +6,71 @@ export const useSupabase = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+    // Teste de conexão inicial
+  useEffect(() => {
+    const testConnection = async () => {
+      console.log('🔌 useSupabase - Testando conexão inicial...');
+      try {
+        // Teste 1: Unidades
+        const { data: unidadesData, error: unidadesError } = await supabase
+          .from('unidades')
+          .select('*')
+          .limit(1);
+        
+        if (unidadesError) {
+          console.error('❌ useSupabase - Erro na tabela unidades:', unidadesError);
+        } else {
+          console.log('✅ useSupabase - Tabela unidades OK, dados:', unidadesData?.length || 0);
+        }
+
+        // Teste 2: Estoque_2
+        const { data: estoqueData, error: estoqueError } = await supabase
+          .from('estoque_2')
+          .select('*')
+          .limit(1);
+        
+        if (estoqueError) {
+          console.error('❌ useSupabase - Erro na tabela estoque_2:', estoqueError);
+        } else {
+          console.log('✅ useSupabase - Tabela estoque_2 OK, dados:', estoqueData?.length || 0);
+        }
+
+        // Teste 3: Faturamento
+        const { data: faturamentoData, error: faturamentoError } = await supabase
+          .from('faturamento')
+          .select('*')
+          .limit(1);
+        
+        if (faturamentoError) {
+          console.error('❌ useSupabase - Erro na tabela faturamento:', faturamentoError);
+        } else {
+          console.log('✅ useSupabase - Tabela faturamento OK, dados:', faturamentoData?.length || 0);
+        }
+
+        console.log('✅ useSupabase - Conexão inicial OK');
+      } catch (err) {
+        console.error('❌ useSupabase - Erro geral na conexão inicial:', err);
+      }
+    };
+    
+    testConnection();
+  }, []);
+
   const fetchFaturamento = useCallback(async (filters: any = {}) => {
     setLoading(true);
     setError(null);
 
     try {
+      console.log('🔍 fetchFaturamento - Iniciando busca...');
       console.log('🔍 fetchFaturamento - filtros recebidos:', filters);
+      console.log('🔍 fetchFaturamento - Verificando conexão Supabase...');
+      
+      // Verificar se o cliente Supabase está disponível
+      if (!supabase) {
+        throw new Error('Cliente Supabase não está disponível');
+      }
+      
+      console.log('🔍 fetchFaturamento - Cliente Supabase OK');
 
       // Teste simples primeiro - buscar todos os dados sem filtros
       const { error: _testError } = await supabase
@@ -106,6 +165,14 @@ export const useSupabase = () => {
 
     try {
       console.log('🔍 fetchEstoque - Iniciando busca de estoque...');
+      console.log('🔍 fetchEstoque - Verificando conexão Supabase...');
+      
+      // Verificar se o cliente Supabase está disponível
+      if (!supabase) {
+        throw new Error('Cliente Supabase não está disponível');
+      }
+      
+      console.log('🔍 fetchEstoque - Cliente Supabase OK');
       console.log('🔍 Filtros recebidos:', filters);
       console.log('🔍 Filtro unidade específico:', filters.unidade);
       console.log('🔍 Tipo do filtro unidade:', typeof filters.unidade);
@@ -121,7 +188,7 @@ export const useSupabase = () => {
           *,
           unidades(nome, codigo)
         `)
-        .order('quantidade', { ascending: false })
+        .order('valor_estoque', { ascending: false })
         .order('produto_nome', { ascending: true });
 
       // Aplicar filtros se fornecidos
@@ -203,9 +270,51 @@ export const useSupabase = () => {
 
       console.log('🔍 Total de registros encontrados:', totalCount);
 
-      // Aplicar paginação para os dados
+      // CORREÇÃO: Se não há filtros específicos, retornar TODOS os dados sem paginação
+      if (!filters.unidade || filters.unidade === 'all') {
+        console.log('🔍 Buscando TODOS os dados sem paginação...');
+        
+        // Teste adicional: query simples sem joins
+        console.log('🔍 Teste adicional - Query simples sem joins...');
+        const { data: simpleData, error: simpleError } = await supabase
+          .from('estoque_2')
+          .select('*')
+          .limit(5);
+        
+        if (simpleError) {
+          console.error('❌ Erro na query simples:', simpleError);
+        } else {
+          console.log('🔍 Query simples retornou:', simpleData?.length || 0, 'registros');
+          console.log('🔍 Primeiros registros da query simples:', simpleData?.slice(0, 2));
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+          console.error('❌ Erro na consulta estoque_2:', error);
+          throw error;
+        }
+
+        console.log('🔍 Dados retornados do fetchEstoque (TODOS):', data?.length, 'registros');
+        console.log('🔍 Primeiros 3 registros para debug:', data?.slice(0, 3).map(item => ({
+          id: item.id,
+          produto_nome: item.produto_nome,
+          unidade_id: item.unidade_id,
+          quantidade: item.quantidade
+        })));
+
+        return {
+          data: data || [],
+          totalCount: data?.length || 0,
+          currentPage: 1,
+          totalPages: 1,
+          pageSize: data?.length || 0
+        };
+      }
+
+      // Aplicar paginação apenas se houver filtros específicos
       const page = filters.page || 1;
-      const pageSize = filters.pageSize || 200;
+      const pageSize = filters.pageSize || 1000; // Aumentar pageSize para 1000
       const offset = (page - 1) * pageSize;
       query = query.range(offset, offset + pageSize - 1);
 
@@ -242,7 +351,7 @@ export const useSupabase = () => {
         totalCount: 0,
         currentPage: 1,
         totalPages: 1,
-        pageSize: filters.pageSize || 200
+        pageSize: filters.pageSize || 1000
       };
     } finally {
       setLoading(false);

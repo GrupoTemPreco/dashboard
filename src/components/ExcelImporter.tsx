@@ -47,6 +47,7 @@ interface EstoqueData {
   'Media Venda'?: number;
   'Dia Estocad'?: number;
   '% Sunrida'?: number;
+  'Fabricante'?: string;
   // Novos campos para estoque_2
   'Necessidade'?: string;
   'Estoque Confirmado'?: number;
@@ -127,18 +128,7 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
     console.log('🔍 DEBUG - Conteúdo da planilha:', allValuesString.substring(0, 500) + '...');
     console.log('🔍 DEBUG - Primeiras 5 linhas:', data.slice(0, 5));
 
-    // Verificar se é planilha de colaboradores baseado no conteúdo (PRIORIDADE ALTA)
-    const colaboradoresIndicators = [
-      'usuário:', 'colaborador', 'user:', 'análise de venda por item', 'período',
-      'total usuário', 'análise de venda por item', 'análise de venda',
-      'abraao lincoln', 'batist', 'usuário: abraao'
-    ];
-
-    const hasColaboradoresContent = colaboradoresIndicators.some(indicator =>
-      allValuesString.includes(indicator)
-    );
-
-    // Verificar se é planilha de estoque baseado no conteúdo
+    // Verificar se é planilha de estoque baseado no conteúdo (PRIORIDADE ALTA)
     const estoqueIndicators = [
       'produto', 'estoque', 'curva', 'preço', 'ação',
       'media venda', 'estoque classific', 'dias', 'ult. venda', 'ult. compra',
@@ -157,10 +147,22 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
       'média venda diária', 'fabricante', 'qtd. demanda', 'est. mín', 'origem est. mín.',
       'dia estocagem', 'custo', 'custo médio', 'curva valor', 'custo x necessidade',
       'custo x estoque', 'ruptura venda', 'necessidade qtd', 'percentual suprida qtd',
-      'compra confirmada', 'encomenda'
+      'compra confirmada', 'encomenda', 'nevralgex', 'dipirona', 'sildenafila', 'soro fisiologico',
+      'lixa de unha', 'excesso', 'falta', 'demanda', 'drogaria', 'ultra xbrothers'
     ];
 
     const hasEstoqueContent = estoqueIndicators.some(indicator =>
+      allValuesString.includes(indicator)
+    );
+
+    // Verificar se é planilha de colaboradores baseado no conteúdo (PRIORIDADE MÉDIA)
+    const colaboradoresIndicators = [
+      'usuário:', 'colaborador', 'user:', 'análise de venda por item', 'período',
+      'total usuário', 'análise de venda por item', 'análise de venda',
+      'abraao lincoln', 'batist', 'usuário: abraao'
+    ];
+
+    const hasColaboradoresContent = colaboradoresIndicators.some(indicator =>
       allValuesString.includes(indicator)
     );
 
@@ -176,8 +178,14 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
       allValuesString.includes(indicator)
     );
 
-    // PRIORIZAR COLABORADORES se houver indicadores específicos de usuário
-    if (hasColaboradoresContent) {
+    // PRIORIZAR ESTOQUE se houver indicadores específicos de estoque
+    if (hasEstoqueContent) {
+      console.log('📦 Planilha detectada como ESTOQUE');
+      console.log('🔍 Indicadores encontrados:', estoqueIndicators.filter(indicator => allValuesString.includes(indicator)));
+      return 'estoque';
+    }
+    // Se não tem indicadores específicos de estoque, verificar colaboradores
+    else if (hasColaboradoresContent) {
       console.log('👥 Planilha detectada como COLABORADORES');
       console.log('🔍 Indicadores encontrados:', colaboradoresIndicators.filter(indicator => allValuesString.includes(indicator)));
       return 'colaboradores';
@@ -188,29 +196,26 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
       console.log('🔍 Indicadores encontrados:', faturamentoIndicators.filter(indicator => allValuesString.includes(indicator)));
       return 'faturamento';
     }
-    // Se não tem indicadores específicos de faturamento, verificar estoque
-    else if (hasEstoqueContent) {
-      console.log('📦 Planilha detectada como ESTOQUE');
-      console.log('🔍 Indicadores encontrados:', estoqueIndicators.filter(indicator => allValuesString.includes(indicator)));
+
+    // Se não detectou nenhum tipo específico, verificar fallbacks
+    if (allValuesString.includes('produto') || allValuesString.includes('estoque') || allValuesString.includes('fabricante')) {
+      console.log('📦 Planilha detectada como ESTOQUE (fallback)');
+      console.log('🔍 Conteúdo da planilha contém indicadores de estoque');
       return 'estoque';
     }
-
     // Se não detectou nenhum tipo específico, verificar se é colaboradores por padrão
-    // baseado no nome da aba ou conteúdo específico
-    if (allValuesString.includes('usuário') || allValuesString.includes('colaborador') || allValuesString.includes('user')) {
+    else if (allValuesString.includes('usuário') || allValuesString.includes('colaborador') || allValuesString.includes('user')) {
       console.log('👥 Planilha detectada como COLABORADORES (fallback)');
       console.log('🔍 Conteúdo da planilha contém indicadores de colaboradores');
       return 'colaboradores';
     }
     // Se não detectou nenhum tipo específico, verificar se é faturamento por padrão
-    // baseado no nome da aba ou conteúdo específico
     else if (allValuesString.includes('análise de venda por item') || allValuesString.includes('faturamento')) {
       console.log('💰 Planilha detectada como FATURAMENTO (fallback)');
       console.log('🔍 Conteúdo da planilha contém indicadores de faturamento');
       return 'faturamento';
     }
     // Se não detectou nenhum tipo específico, verificar se é colaboradores por padrão
-    // baseado no nome da aba ou conteúdo específico
     else if (allValuesString.includes('análise') || allValuesString.includes('venda') || allValuesString.includes('item')) {
       console.log('👥 Planilha detectada como COLABORADORES (fallback)');
       console.log('🔍 Conteúdo da planilha contém indicadores de colaboradores');
@@ -400,40 +405,64 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
   };
 
   // Função para parsear dados de estoque
+  // Função para normalizar strings (remover acentos, espaços extras, etc.)
+  const normalizeString = (str: string): string => {
+    if (!str) return '';
+    return str
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Remove acentos
+      .replace(/\s+/g, ' ') // Normaliza espaços
+      .trim();
+  };
+
+  // Função para truncar strings para campos com limite de caracteres
+  const truncateString = (str: string, maxLength: number): string => {
+    if (!str) return '';
+    return str.toString().substring(0, maxLength);
+  };
+
   const parseEstoqueData = (data: any[]): EstoqueData[] => {
     const parsedData: EstoqueData[] = [];
     let currentUnitCode = '';
+    let totalLinhas = data.length;
+    let linhasProcessadas = 0;
+    let linhasPuladas = 0;
+    let linhasComErro = 0;
+    let linhasVazias = 0;
+    let linhasRodape = 0;
+    let linhasMetadados = 0;
 
     console.log('📦 Iniciando parse de dados de estoque...');
-    console.log('📋 Total de linhas:', data.length);
+    console.log(`📋 Total de linhas lidas da planilha: ${totalLinhas}`);
+    console.log('📋 Primeiras 3 linhas para debug:', data.slice(0, 3));
 
-    // Encontrar a linha de cabeçalhos reais
+    // Encontrar a linha de cabeçalhos reais - LÓGICA SIMPLIFICADA
     let headerRowIndex = -1;
     let headerRow: any = null;
 
-    // Procurar pela linha que contém os cabeçalhos
+    // Procurar pela linha que contém os cabeçalhos - MAIS PRECISO
     for (let i = 0; i < Math.min(20, data.length); i++) {
       const row = data[i];
-      const rowValues = Object.values(row).map(v => v?.toString().toLowerCase() || '');
-      const rowString = rowValues.join(' ');
+      const rowValues = Object.values(row).map(v => v?.toString() || '');
+      const normalizedRowString = rowValues.map(v => normalizeString(v)).join(' ');
 
-      console.log(`🔍 Verificando linha ${i + 1}:`, rowString.substring(0, 200));
-
-      // Verificar se esta linha contém cabeçalhos de estoque
+      // Verificar se esta linha contém cabeçalhos de estoque - CRITÉRIOS MAIS ESPECÍFICOS
       const hasEstoqueHeaders = [
-        'un. neg.', 'produto', 'estoque', 'curva', 'preço', 'ação',
-        'media', 'classific', 'ult.', 'venda', 'compra', 'final', 'dias',
-        'tipo necessidade', 'conf. comprar', 'média venda mensal', 'estoque (dias)',
-        'classificação principal', 'preço venda médio', 'estoque final (dias)',
-        'últ. venda (dias)', 'transf. conf.', 'comprar (dias)', 'necessidade (dias)',
-        'últ. compra (dias)', 'apelido un. neg.', 'fornecedor últ. compra',
-        'média venda diária', 'fabricante', 'qtd. demanda', 'est. mín',
-        'origem est. mín.', 'dia estocagem', 'custo', 'custo médio', 'curva valor',
-        'custo x necessidade', 'custo x estoque', 'ruptura venda', 'necessidade qtd',
-        'percentual suprida qtd', 'compra confirmada', 'encomenda'
-      ].some(header => rowString.includes(header));
+        'produto', 'un. neg.', 'estoque', 'curva', 'preco', 'media',
+        'classificacao', 'ult.', 'venda', 'compra', 'final', 'dias',
+        'necessidade', 'comprar', 'fabricante', 'fornecedor'
+      ].some(header => normalizedRowString.includes(header));
 
-      if (hasEstoqueHeaders) {
+      // Verificar se é uma linha de metadados (usuário, impressão, etc.)
+      const isMetadataLine = normalizedRowString.includes('usuario:') || 
+                            normalizedRowString.includes('impressao:') || 
+                            normalizedRowString.includes('unidade de negocio:') ||
+                            normalizedRowString.includes('escritorio') ||
+                            normalizedRowString.includes('nayara') ||
+                            normalizedRowString.includes('faria');
+
+      if (hasEstoqueHeaders && !isMetadataLine) {
         headerRowIndex = i;
         headerRow = row;
         console.log(`📋 Cabeçalhos encontrados na linha ${i + 1}`);
@@ -441,136 +470,158 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
       }
     }
 
+    // SE NÃO ENCONTROU CABEÇALHOS, USAR PRIMEIRA LINHA COMO REFERÊNCIA
     if (headerRowIndex === -1) {
-      console.log('⚠️ Nenhuma linha de cabeçalho encontrada');
-      return [];
+      console.log('⚠️ Nenhuma linha de cabeçalho encontrada, usando primeira linha como referência');
+      headerRowIndex = 0;
+      headerRow = data[0];
     }
 
     console.log('📋 Linha de cabeçalho encontrada:', headerRow);
 
-    // Mapear colunas baseado nos cabeçalhos encontrados
+    // Mapear colunas baseado nos cabeçalhos encontrados - MAIS FLEXÍVEL
     const columnMapping: { [key: string]: string } = {};
     Object.keys(headerRow).forEach(key => {
-      const headerValue = headerRow[key]?.toString().toLowerCase() || '';
-      console.log(`🔍 Processando cabeçalho: "${key}" -> "${headerRow[key]}" (lowercase: "${headerValue}")`);
+      const headerValue = headerRow[key]?.toString() || '';
+      const normalizedHeaderValue = normalizeString(headerValue);
+      console.log(`🔍 Processando cabeçalho: "${key}" -> "${headerValue}" (normalizado: "${normalizedHeaderValue}")`);
       
-      // Debug específico para Classificação Principal
-      if (headerValue.includes('classificação') || headerValue.includes('classificacao')) {
-        console.log(`🔍 Debug - Cabeçalho contém 'classificação': "${headerValue}"`);
-        console.log(`🔍 Debug - Inclui 'principal'? ${headerValue.includes('principal')}`);
-      }
-
-      if (headerValue.includes('un. neg.') && !headerValue.includes('apelido')) {
-        columnMapping['Un. Neg.'] = key;
-        console.log(`✅ Mapeado 'Un. Neg.' para coluna ${key}`);
-      } else if (headerValue.includes('apelido') && headerValue.includes('un. neg.')) {
-        columnMapping['Apelido Unidade'] = key;
-        console.log(`✅ Mapeado 'Apelido Unidade' para coluna ${key}`);
-      } else if (headerValue.includes('produto')) {
+      // Mapeamento correto baseado nas informações fornecidas pelo usuário - USANDO NORMALIZAÇÃO
+      if (normalizedHeaderValue.includes('produto')) {
         columnMapping['Produto'] = key;
         console.log(`✅ Mapeado 'Produto' para coluna ${key}`);
-      } else if (headerValue.includes('estoque') && !headerValue.includes('final') && !headerValue.includes('classific') && !headerValue.includes('conf.')) {
+      } else if (normalizedHeaderValue.includes('un. neg.') && !normalizedHeaderValue.includes('apelido un. neg.')) {
+        columnMapping['Un. Neg.'] = key;
+        console.log(`✅ Mapeado 'Un. Neg.' para coluna ${key}`);
+      } else if (normalizedHeaderValue.includes('estoque') && !normalizedHeaderValue.includes('estoque conf.') && !normalizedHeaderValue.includes('estoque final') && !normalizedHeaderValue.includes('estoque dias') && !normalizedHeaderValue.includes('custo x estoque') && !normalizedHeaderValue.includes('*') && !normalizedHeaderValue.includes('(')) {
         columnMapping['Estoque'] = key;
         console.log(`✅ Mapeado 'Estoque' para coluna ${key}`);
-      } else if (headerValue.includes('curva') && !headerValue.includes('qtd') && !headerValue.includes('valor')) {
-        columnMapping['Curva'] = key;
-        console.log(`✅ Mapeado 'Curva' para coluna ${key}`);
-      } else if (headerValue.includes('media') && headerValue.includes('venda') && !headerValue.includes('mensal') && !headerValue.includes('diaria')) {
-        columnMapping['Media Venda'] = key;
-        console.log(`✅ Mapeado 'Media Venda' para coluna ${key}`);
-      } else if (headerValue.includes('media') && !headerValue.includes('venda')) {
-        columnMapping['Media'] = key;
-        console.log(`✅ Mapeado 'Media' para coluna ${key}`);
-      } else if (headerValue.includes('classific') && !headerValue.includes('principal')) {
-        columnMapping['Estoque Classific'] = key;
-        console.log(`✅ Mapeado 'Estoque Classific' para coluna ${key}`);
-      } else if ((headerValue.includes('classificacao') && headerValue.includes('principal')) || 
-                 (headerValue.includes('classificação') && headerValue.includes('principal')) ||
-                 (headerValue.toLowerCase().includes('classificacao') && headerValue.toLowerCase().includes('principal')) ||
-                 (headerValue.toLowerCase().includes('classificação') && headerValue.toLowerCase().includes('principal'))) {
+      } else if (normalizedHeaderValue.includes('estoque final (dias)') || normalizedHeaderValue.includes('estoque final dias')) {
+        columnMapping['Estoque Final Dias'] = key;
+        console.log(`✅ Mapeado 'Estoque Final Dias' para coluna ${key}`);
+      } else if (normalizedHeaderValue.includes('estoque (dias)') || normalizedHeaderValue.includes('estoque dias')) {
+        columnMapping['Estoque Final Dias'] = key;
+        console.log(`✅ Mapeado 'Estoque Final Dias' para coluna ${key}`);
+      } else if (normalizedHeaderValue.includes('preco venda medio')) {
+        columnMapping['Preco Venda Medio'] = key;
+        console.log(`✅ Mapeado 'Preco Venda Medio' para coluna ${key}`);
+      } else if (normalizedHeaderValue.includes('necessidade') && !normalizedHeaderValue.includes('tipo necessidade') && !normalizedHeaderValue.includes('necessidade (dias)') && !normalizedHeaderValue.includes('necessidade qtd') && !normalizedHeaderValue.includes('custo x necessidade')) {
+        columnMapping['Necessidade'] = key;
+        console.log(`✅ Mapeado 'Necessidade' para coluna ${key}`);
+      } else if (normalizedHeaderValue.includes('curva qtd')) {
+        columnMapping['Curva Qtd'] = key;
+        console.log(`✅ Mapeado 'Curva Qtd' para coluna ${key}`);
+      } else if (normalizedHeaderValue.includes('media venda mensal')) {
+        columnMapping['Media Venda Mensal'] = key;
+        console.log(`✅ Mapeado 'Media Venda Mensal' para coluna ${key}`);
+      } else if (normalizedHeaderValue.includes('classificacao principal')) {
         columnMapping['Classificação Principal'] = key;
         console.log(`✅ Mapeado 'Classificação Principal' para coluna ${key}`);
-      } else if (headerValue.includes('preço') || headerValue.includes('ação')) {
-        columnMapping['Preço'] = key;
-        console.log(`✅ Mapeado 'Preço' para coluna ${key}`);
-      } else if (headerValue.includes('estoque') && headerValue.includes('final') && !headerValue.includes('dias')) {
-        columnMapping['Estoque Final'] = key;
-        console.log(`✅ Mapeado 'Estoque Final' para coluna ${key}`);
-      } else if (headerValue.includes('ult.') && headerValue.includes('venda') && !headerValue.includes('dias')) {
-        columnMapping['Ult. Venda'] = key;
-        console.log(`✅ Mapeado 'Ult. Venda' para coluna ${key}`);
-      } else if (headerValue.includes('ult.') && headerValue.includes('compra') && !headerValue.includes('dias')) {
-        columnMapping['Ult. Compra'] = key;
-        console.log(`✅ Mapeado 'Ult. Compra' para coluna ${key}`);
-      } else if (headerValue.includes('dia') && headerValue.includes('estocad')) {
+      } else if (normalizedHeaderValue.includes('ult. venda (dias)') || normalizedHeaderValue.includes('ult. venda dias')) {
+        columnMapping['Ultima Venda Dias'] = key;
+        console.log(`✅ Mapeado 'Ultima Venda Dias' para coluna ${key}`);
+      } else if (normalizedHeaderValue.includes('ult. compra (dias)') || normalizedHeaderValue.includes('ult. compra dias')) {
+        columnMapping['Ultima Compra Dias'] = key;
+        console.log(`✅ Mapeado 'Ultima Compra Dias' para coluna ${key}`);
+      } else if (normalizedHeaderValue.includes('apelido un. neg.')) {
+        columnMapping['Apelido Unidade'] = key;
+        console.log(`✅ Mapeado 'Apelido Unidade' para coluna ${key}`);
+      } else if (normalizedHeaderValue.includes('media venda diaria')) {
+        columnMapping['Media Venda Diaria'] = key;
+        console.log(`✅ Mapeado 'Media Venda Diaria' para coluna ${key}`);
+      } else if (normalizedHeaderValue.includes('qtd. demanda')) {
+        columnMapping['Qtd Demanda'] = key;
+        console.log(`✅ Mapeado 'Qtd Demanda' para coluna ${key}`);
+      } else if (normalizedHeaderValue.includes('custo medio')) {
+        columnMapping['Custo Medio'] = key;
+        console.log(`✅ Mapeado 'Custo Medio' para coluna ${key}`);
+      } else if (normalizedHeaderValue.includes('estoque conf.')) {
+        columnMapping['Estoque Confirmado'] = key;
+        console.log(`✅ Mapeado 'Estoque Confirmado' para coluna ${key}`);
+      } else if (normalizedHeaderValue.includes('comprar') && !normalizedHeaderValue.includes('comprar (dias)')) {
+        columnMapping['Comprar'] = key;
+        console.log(`✅ Mapeado 'Comprar' para coluna ${key}`);
+      } else if (normalizedHeaderValue.includes('comprar (dias)')) {
+        columnMapping['Comprar Dias'] = key;
+        console.log(`✅ Mapeado 'Comprar Dias' para coluna ${key}`);
+      } else if (normalizedHeaderValue.includes('necessidade (dias)')) {
+        columnMapping['Necessidade Dias'] = key;
+        console.log(`✅ Mapeado 'Necessidade Dias' para coluna ${key}`);
+      } else if (normalizedHeaderValue.includes('fornecedor ult. compra')) {
+        columnMapping['Fornecedor Ultima Compra'] = key;
+        console.log(`✅ Mapeado 'Fornecedor Ultima Compra' para coluna ${key}`);
+      } else if (normalizedHeaderValue.includes('fabricante')) {
+        columnMapping['Fabricante'] = key;
+        console.log(`✅ Mapeado 'Fabricante' para coluna ${key}`);
+      } else if (normalizedHeaderValue.includes('est. min')) {
+        columnMapping['Estoque Minimo'] = key;
+        console.log(`✅ Mapeado 'Estoque Minimo' para coluna ${key}`);
+      } else if (normalizedHeaderValue.includes('origem est. min.')) {
+        columnMapping['Origem Estoque Minimo'] = key;
+        console.log(`✅ Mapeado 'Origem Estoque Minimo' para coluna ${key}`);
+      } else if (normalizedHeaderValue.includes('dia estocagem')) {
         columnMapping['Dia Estocad'] = key;
         console.log(`✅ Mapeado 'Dia Estocad' para coluna ${key}`);
-      } else if (headerValue.includes('%') || headerValue.includes('sugrida')) {
-        columnMapping['% Sunrida'] = key;
-        console.log(`✅ Mapeado '% Sunrida' para coluna ${key}`);
-      }
-
-      // Novos campos para estoque_2
-      else if (headerValue.includes('necessidade')) {
-        columnMapping['Necessidade'] = key;
-      } else if (headerValue.includes('estoque') && headerValue.includes('confirmado')) {
-        columnMapping['Estoque Confirmado'] = key;
-      } else if (headerValue.includes('comprar')) {
-        columnMapping['Comprar'] = key;
-      } else if (headerValue.includes('curva') && headerValue.includes('qtd')) {
-        columnMapping['Curva Qtd'] = key;
-      } else if (headerValue.includes('media') && headerValue.includes('venda') && headerValue.includes('mensal')) {
-        columnMapping['Media Venda Mensal'] = key;
-      } else if (headerValue.includes('estoque') && headerValue.includes('final') && headerValue.includes('dias')) {
-        columnMapping['Estoque Final Dias'] = key;
-      } else if (headerValue.includes('estoque') && headerValue.includes('dias') && !headerValue.includes('final')) {
-        columnMapping['Dia Estocad'] = key;
-      } else if (headerValue.includes('preco') && headerValue.includes('venda') && headerValue.includes('medio')) {
-        columnMapping['Preco Venda Medio'] = key;
-      } else if (headerValue.includes('ultima') && headerValue.includes('venda') && headerValue.includes('dias')) {
-        columnMapping['Ultima Venda Dias'] = key;
-      } else if (headerValue.includes('transferencia') && headerValue.includes('confirmada')) {
-        columnMapping['Transferencia Confirmada'] = key;
-      } else if (headerValue.includes('comprar') && headerValue.includes('dias')) {
-        columnMapping['Comprar Dias'] = key;
-      } else if (headerValue.includes('necessidade') && headerValue.includes('dias')) {
-        columnMapping['Necessidade Dias'] = key;
-      } else if (headerValue.includes('ultima') && headerValue.includes('compra') && headerValue.includes('dias')) {
-        columnMapping['Ultima Compra Dias'] = key;
-      } else if (headerValue.includes('apelido') && headerValue.includes('unidade')) {
-        columnMapping['Apelido Unidade'] = key;
-      } else if (headerValue.includes('fornecedor') && headerValue.includes('ultima') && headerValue.includes('compra')) {
-        columnMapping['Fornecedor Ultima Compra'] = key;
-      } else if (headerValue.includes('media') && headerValue.includes('venda') && headerValue.includes('diaria')) {
-        columnMapping['Media Venda Diaria'] = key;
-      } else if (headerValue.includes('qtd') && headerValue.includes('demanda')) {
-        columnMapping['Qtd Demanda'] = key;
-      } else if (headerValue.includes('estoque') && headerValue.includes('minimo')) {
-        columnMapping['Estoque Minimo'] = key;
-      } else if (headerValue.includes('origem') && headerValue.includes('estoque') && headerValue.includes('minimo')) {
-        columnMapping['Origem Estoque Minimo'] = key;
-      } else if (headerValue.includes('custo')) {
+      } else if (normalizedHeaderValue.includes('custo') && !normalizedHeaderValue.includes('custo medio') && !normalizedHeaderValue.includes('custo x')) {
         columnMapping['Custo'] = key;
-      } else if (headerValue.includes('custo') && headerValue.includes('medio')) {
-        columnMapping['Custo Medio'] = key;
-      } else if (headerValue.includes('curva') && headerValue.includes('valor')) {
+        console.log(`✅ Mapeado 'Custo' para coluna ${key}`);
+      } else if (normalizedHeaderValue.includes('curva valor')) {
         columnMapping['Curva Valor'] = key;
-      } else if (headerValue.includes('custo') && headerValue.includes('necessidade')) {
+        console.log(`✅ Mapeado 'Curva Valor' para coluna ${key}`);
+      } else if (normalizedHeaderValue.includes('custo x necessidade')) {
         columnMapping['Custo x Necessidade'] = key;
-      } else if (headerValue.includes('custo') && headerValue.includes('estoque')) {
+        console.log(`✅ Mapeado 'Custo x Necessidade' para coluna ${key}`);
+      } else if (normalizedHeaderValue.includes('custo x estoque')) {
         columnMapping['Custo x Estoque'] = key;
-      } else if (headerValue.includes('ruptura') && headerValue.includes('venda')) {
+        console.log(`✅ Mapeado 'Custo x Estoque' para coluna ${key}`);
+      } else if (normalizedHeaderValue.includes('ruptura venda')) {
         columnMapping['Ruptura Venda'] = key;
-      } else if (headerValue.includes('necessidade') && headerValue.includes('qtd')) {
+        console.log(`✅ Mapeado 'Ruptura Venda' para coluna ${key}`);
+      } else if (normalizedHeaderValue.includes('necessidade qtd')) {
         columnMapping['Necessidade Qtd'] = key;
-      } else if (headerValue.includes('percentual') && headerValue.includes('suprida')) {
+        console.log(`✅ Mapeado 'Necessidade Qtd' para coluna ${key}`);
+      } else if (normalizedHeaderValue.includes('percentual suprida qtd')) {
         columnMapping['Percentual Suprida Qtd'] = key;
-      } else if (headerValue.includes('compra') && headerValue.includes('confirmada')) {
+        console.log(`✅ Mapeado 'Percentual Suprida Qtd' para coluna ${key}`);
+      } else if (normalizedHeaderValue.includes('compra confirmada')) {
         columnMapping['Compra Confirmada'] = key;
-      } else if (headerValue.includes('encomenda')) {
+        console.log(`✅ Mapeado 'Compra Confirmada' para coluna ${key}`);
+      } else if (normalizedHeaderValue.includes('encomenda')) {
         columnMapping['Encomenda'] = key;
+        console.log(`✅ Mapeado 'Encomenda' para coluna ${key}`);
+      } else if (normalizedHeaderValue.includes('transferencia confirmada')) {
+        columnMapping['Transferencia Confirmada'] = key;
+        console.log(`✅ Mapeado 'Transferencia Confirmada' para coluna ${key}`);
       }
+      // Adicionar mais mapeamentos conforme necessário
     });
+
+    // Se não encontrou mapeamentos específicos, tentar mapeamento por posição
+    if (Object.keys(columnMapping).length === 0) {
+      console.log('⚠️ Nenhum mapeamento específico encontrado, tentando mapeamento por posição...');
+      const columnKeys = Object.keys(headerRow);
+      
+      if (columnKeys.length >= 1) {
+        columnMapping['Un. Neg.'] = columnKeys[0];
+        console.log(`✅ Mapeado 'Un. Neg.' para primeira coluna: ${columnKeys[0]}`);
+      }
+      if (columnKeys.length >= 2) {
+        columnMapping['Produto'] = columnKeys[1];
+        console.log(`✅ Mapeado 'Produto' para segunda coluna: ${columnKeys[1]}`);
+      }
+      if (columnKeys.length >= 3) {
+        columnMapping['Estoque'] = columnKeys[2];
+        console.log(`✅ Mapeado 'Estoque' para terceira coluna: ${columnKeys[2]}`);
+      }
+      if (columnKeys.length >= 4) {
+        columnMapping['Curva'] = columnKeys[3];
+        console.log(`✅ Mapeado 'Curva' para quarta coluna: ${columnKeys[3]}`);
+      }
+      if (columnKeys.length >= 5) {
+        columnMapping['Preço'] = columnKeys[4];
+        console.log(`✅ Mapeado 'Preço' para quinta coluna: ${columnKeys[4]}`);
+      }
+    }
 
     // Debug do mapeamento de colunas
     console.log('🔍 Mapeamento final de colunas:', columnMapping);
@@ -581,33 +632,129 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
       const firstColumnKey = Object.keys(headerRow)[0];
       if (firstColumnKey) {
         columnMapping['Un. Neg.'] = firstColumnKey;
+        console.log(`✅ Usando primeira coluna como 'Un. Neg.': ${firstColumnKey}`);
       }
     }
 
-    // Debug da primeira linha de dados
-    if (data.length > headerRowIndex + 1) {
-      console.log('🔍 Primeira linha de dados:', data[headerRowIndex + 1]);
+    // Se não encontrou a coluna Produto, tentar encontrar na segunda coluna
+    if (!columnMapping['Produto']) {
+      const secondColumnKey = Object.keys(headerRow)[1];
+      if (secondColumnKey) {
+        columnMapping['Produto'] = secondColumnKey;
+        console.log(`✅ Usando segunda coluna como 'Produto': ${secondColumnKey}`);
+      }
     }
 
-    // Processar linhas de dados (pular linhas de cabeçalho)
+    // Processar linhas de dados - FILTROS MELHORADOS
     for (let i = headerRowIndex + 1; i < data.length; i++) {
       const row = data[i];
 
-      // Pular linhas vazias ou que contêm apenas cabeçalhos do sistema
+      // Pular linhas completamente vazias
       const rowValues = Object.values(row);
-      const hasSystemHeader = rowValues.some(value =>
-        value && value.toString().includes('Unidade de Negócio:') ||
-        value && value.toString().includes('Usuário:') ||
-        value && value.toString().includes('Impressão:') ||
-        value && value.toString().includes('a7 pharma') ||
-        value && value.toString().includes('página') ||
-        value && value.toString().includes('desenvolvimento de software')
+      const hasAnyData = rowValues.some(value => 
+        value && value.toString().trim() !== '' && 
+        value.toString().toLowerCase() !== 'null' &&
+        value.toString().toLowerCase() !== 'undefined'
       );
 
-      if (hasSystemHeader) {
-        console.log(`📋 Pulando linha ${i + 1} - cabeçalho do sistema`);
+      if (!hasAnyData) {
+        linhasVazias++;
         continue;
       }
+
+      // Verificar se é linha de rodapé/resumo - FILTRO SIMPLIFICADO
+      const isFooterLine = rowValues.some(value => {
+        if (!value) return false;
+        const normalizedValue = normalizeString(value.toString());
+        
+        // Log para debug de rodapé - SEMPRE LOGAR
+        if (normalizedValue.includes('registro') || normalizedValue.includes('total') || normalizedValue.includes('22334')) {
+          console.log(`🔍 Verificando possível rodapé: "${value}" -> "${normalizedValue}"`);
+        }
+        
+        const isFooter = (
+          // Padrões específicos das fotos
+          normalizedValue.includes('22334 registro(s)') ||
+          normalizedValue.includes('22334 registros') ||
+          normalizedValue.includes('registro(s)') ||
+          // Outros padrões de rodapé
+          normalizedValue.includes('total de produtos') ||
+          normalizedValue.includes('total geral') ||
+          normalizedValue.includes('soma total') ||
+          normalizedValue.includes('registros encontrados') ||
+          normalizedValue.includes('produtos encontrados') ||
+          normalizedValue.includes('total de itens') ||
+          normalizedValue.includes('total de estoque') ||
+          normalizedValue.includes('resumo final') ||
+          normalizedValue.includes('fim do relatorio')
+        );
+        
+        if (isFooter) {
+          console.log(`📄 ENCONTRADO RODAPÉ: "${value}" -> "${normalizedValue}"`);
+        }
+        
+        return isFooter;
+      });
+
+      if (isFooterLine) {
+        console.log(`📄 Pulando linha ${i + 1} - identificada como rodapé/resumo`);
+        linhasRodape++;
+        continue;
+      }
+
+      // Pular linhas que contêm apenas cabeçalhos do sistema - FILTRO SIMPLIFICADO
+      const hasSystemHeader = rowValues.some(value => {
+        if (!value) return false;
+        const normalizedValue = normalizeString(value.toString());
+        
+        return (
+          // Padrões específicos das fotos
+          normalizedValue.includes('unidade de negocio:') ||
+          normalizedValue.includes('usuario:') ||
+          normalizedValue.includes('impressao:') ||
+          normalizedValue.includes('a7 pharma') ||
+          normalizedValue.includes('pagina') ||
+          normalizedValue.includes('desenvolvimento de software') ||
+          normalizedValue.includes('alpha7 desenvolvimento de software') ||
+          normalizedValue.includes('http://www.a7.net.br')
+        );
+      });
+
+      if (hasSystemHeader) {
+        console.log(`🏢 Pulando linha ${i + 1} - identificada como cabeçalho do sistema`);
+        linhasMetadados++;
+        continue;
+      }
+
+      // REMOVER FILTRO DE STATUS - ESTÁ FILTRANDO DEMAIS
+      // const hasStatusContent = rowValues.some(value => {
+      //   if (!value) return false;
+      //   const normalizedValue = normalizeString(value.toString());
+      //   
+      //   return (
+      //     normalizedValue.includes('falta:') ||
+      //     normalizedValue.includes('excesso:') ||
+      //     normalizedValue.includes('confirmado:') ||
+      //     normalizedValue.includes('atencao:') ||
+      //     normalizedValue.includes('03:') ||
+      //     normalizedValue.includes('09:') ||
+      //     normalizedValue.includes('02:') ||
+      //     normalizedValue.includes('04:') ||
+      //     normalizedValue.includes('05:') ||
+      //     normalizedValue.includes('06:') ||
+      //     normalizedValue.includes('07:') ||
+      //     normalizedValue.includes('08:') ||
+      //     normalizedValue.includes('10:') ||
+      //     normalizedValue.includes('11:') ||
+      //     normalizedValue.includes('12:')
+      //   );
+      // });
+      // 
+      // if (hasStatusContent) {
+      //   console.log(`⚠️ Pulando linha ${i + 1} - conteúdo de status/resumo`);
+      //   linhasPuladas++;
+      //   continue;
+      // }
 
       // Verificar se é uma linha de cabeçalho de unidade
       const unitCodeMatch = rowValues.find(value =>
@@ -623,231 +770,291 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
         continue;
       }
 
-      // Pular linhas que são cabeçalhos de tabela
-      const isTableHeader = rowValues.some(value =>
-        value && value.toString().includes('tipo necessidade') ||
-        value && value.toString().includes('un. neg.') ||
-        value && value.toString().includes('produto') ||
-        value && value.toString().includes('estoque')
-      );
+              // Mapear dados usando o mapeamento de colunas
+        const estoqueItem: EstoqueData = {};
 
-      if (isTableHeader && i > headerRowIndex) {
-        console.log(`📋 Pulando linha ${i + 1} - cabeçalho de tabela`);
-        continue;
-      }
+        try {
+          Object.entries(columnMapping).forEach(([field, columnKey]) => {
+            const value = row[columnKey];
 
-      // Mapear dados usando o mapeamento de colunas
-      const estoqueItem: EstoqueData = {};
-
-      // Verificar se a linha tem dados válidos (pelo menos produto e estoque)
-      const hasValidData = Object.values(row).some(value =>
-        value && value.toString().trim() !== '' &&
-        !value.toString().includes('tipo necessidade') &&
-        !value.toString().includes('un. neg.') &&
-        !value.toString().includes('produto') &&
-        !value.toString().includes('estoque')
-      );
-
-      if (!hasValidData) {
-        console.log(`📋 Pulando linha ${i + 1} - sem dados válidos`);
-        continue;
-      }
-
-      Object.entries(columnMapping).forEach(([field, columnKey]) => {
-        const value = row[columnKey];
-
-        switch (field) {
-          case 'Un. Neg.':
-            // Usar o valor real da célula, não o cabeçalho
-            const unitValue = value?.toString();
-            console.log(`🔍 Valor lido da coluna 'Un. Neg.': "${unitValue}"`);
-
-            if (unitValue && unitValue !== 'Un. Neg.' && unitValue !== 'Unidade de Negócio' && unitValue.trim() !== '') {
-              estoqueItem['Un. Neg.'] = unitValue.trim();
-              console.log(`✅ Unidade definida: "${unitValue.trim()}"`);
-            } else if (currentUnitCode) {
-              estoqueItem['Un. Neg.'] = currentUnitCode;
-              console.log(`🔄 Usando unidade atual: "${currentUnitCode}"`);
+            switch (field) {
+              case 'Un. Neg.':
+                const unitValue = value?.toString();
+                if (unitValue && unitValue.trim() !== '' && unitValue !== 'Un. Neg.' && unitValue !== 'Unidade de Negócio') {
+                  estoqueItem['Un. Neg.'] = unitValue.trim();
+                } else if (currentUnitCode) {
+                  estoqueItem['Un. Neg.'] = currentUnitCode;
+                }
+                break;
+              case 'Produto':
+                estoqueItem['Produto'] = value?.toString();
+                break;
+              case 'Estoque':
+                estoqueItem['Estoque'] = parseNumber(value);
+                break;
+              case 'Estoque Confirmado':
+                estoqueItem['Estoque Confirmado'] = parseNumber(value);
+                break;
+              case 'Comprar':
+                estoqueItem['Comprar'] = parseNumber(value);
+                break;
+              case 'Curva Qtd':
+                estoqueItem['Curva Qtd'] = value?.toString();
+                break;
+              case 'Media Venda Mensal':
+                estoqueItem['Media Venda Mensal'] = parseNumber(value);
+                break;
+              case 'Estoque Final Dias':
+                estoqueItem['Estoque Final Dias'] = parseNumber(value);
+                break;
+              case 'Classificação Principal':
+                estoqueItem['Classificação Principal'] = value?.toString();
+                break;
+              case 'Preco Venda Medio':
+                estoqueItem['Preco Venda Medio'] = parseNumber(value);
+                break;
+              case 'Ultima Venda Dias':
+                estoqueItem['Ultima Venda Dias'] = parseNumber(value);
+                break;
+              case 'Transferencia Confirmada':
+                estoqueItem['Transferencia Confirmada'] = parseNumber(value);
+                break;
+              case 'Comprar Dias':
+                estoqueItem['Comprar Dias'] = parseNumber(value);
+                break;
+              case 'Necessidade Dias':
+                estoqueItem['Necessidade Dias'] = parseNumber(value);
+                break;
+              case 'Ultima Compra Dias':
+                estoqueItem['Ultima Compra Dias'] = parseNumber(value);
+                break;
+              case 'Apelido Unidade':
+                estoqueItem['Apelido Unidade'] = value?.toString();
+                break;
+              case 'Fornecedor Ultima Compra':
+                estoqueItem['Fornecedor Ultima Compra'] = value?.toString();
+                break;
+              case 'Media Venda Diaria':
+                estoqueItem['Media Venda Diaria'] = parseNumber(value);
+                break;
+              case 'Qtd Demanda':
+                estoqueItem['Qtd Demanda'] = parseNumber(value);
+                break;
+              case 'Estoque Minimo':
+                estoqueItem['Estoque Minimo'] = parseNumber(value);
+                break;
+              case 'Origem Estoque Minimo':
+                estoqueItem['Origem Estoque Minimo'] = value?.toString();
+                break;
+              case 'Custo':
+                estoqueItem['Custo'] = parseNumber(value);
+                break;
+              case 'Custo Medio':
+                estoqueItem['Custo Medio'] = parseNumber(value);
+                break;
+              case 'Curva Valor':
+                estoqueItem['Curva Valor'] = value?.toString();
+                break;
+              case 'Custo x Necessidade':
+                estoqueItem['Custo x Necessidade'] = parseNumber(value);
+                break;
+              case 'Custo x Estoque':
+                estoqueItem['Custo x Estoque'] = parseNumber(value);
+                break;
+              case 'Ruptura Venda':
+                estoqueItem['Ruptura Venda'] = parseNumber(value);
+                break;
+              case 'Necessidade Qtd':
+                estoqueItem['Necessidade Qtd'] = parseNumber(value);
+                break;
+              case 'Percentual Suprida Qtd':
+                estoqueItem['Percentual Suprida Qtd'] = parseNumber(value);
+                break;
+              case 'Compra Confirmada':
+                estoqueItem['Compra Confirmada'] = parseNumber(value);
+                break;
+              case 'Encomenda':
+                estoqueItem['Encomenda'] = parseNumber(value);
+                break;
+              case 'Necessidade':
+                estoqueItem['Necessidade'] = value?.toString();
+                break;
+              case 'Fabricante':
+                estoqueItem['Fabricante'] = value?.toString();
+                break;
+              case 'Curva':
+                estoqueItem['Curva'] = value?.toString();
+                break;
+              case 'Preço':
+                estoqueItem['Preço'] = parseNumber(value);
+                break;
             }
-            break;
-          case 'Produto':
-            estoqueItem['Produto'] = value?.toString();
-            break;
-          case 'Estoque':
-            estoqueItem['Estoque'] = parseNumber(value);
-            break;
-          case 'Curva':
-            estoqueItem['Curva'] = value?.toString();
-            break;
-          case 'Media':
-            estoqueItem['Media'] = parseNumber(value);
-            break;
-          case 'Estoque Classific':
-            estoqueItem['Estoque Classific'] = parseNumber(value);
-            break;
-          case 'Preço':
-            estoqueItem['Preço'] = parseNumber(value);
-            break;
-          case 'Estoque Final':
-            estoqueItem['Estoque Final'] = parseNumber(value);
-            break;
-          case 'Ult. Venda':
-            estoqueItem['Ult. Venda'] = value?.toString();
-            break;
-          case 'Ult. Compra':
-            estoqueItem['Ult. Compra'] = value?.toString();
-            break;
-          case 'Media Venda':
-            estoqueItem['Media Venda'] = parseNumber(value);
-            break;
-          case 'Dia Estocad':
-            estoqueItem['Dia Estocad'] = parseNumber(value);
-            break;
-          case '% Sunrida':
-            estoqueItem['% Sunrida'] = parseNumber(value);
-            break;
-          // Novos campos para estoque_2
-          case 'Necessidade':
-            estoqueItem['Necessidade'] = value?.toString();
-            break;
-          case 'Estoque Confirmado':
-            estoqueItem['Estoque Confirmado'] = parseNumber(value);
-            break;
-          case 'Comprar':
-            estoqueItem['Comprar'] = parseNumber(value);
-            break;
-          case 'Curva Qtd':
-            estoqueItem['Curva Qtd'] = value?.toString();
-            break;
-          case 'Media Venda Mensal':
-            estoqueItem['Media Venda Mensal'] = parseNumber(value);
-            break;
-          case 'Estoque Final Dias':
-            estoqueItem['Estoque Final Dias'] = parseNumber(value);
-            break;
-                  case 'Classificação Principal':
-          estoqueItem['Classificação Principal'] = value?.toString();
-            break;
-          case 'Preco Venda Medio':
-            estoqueItem['Preco Venda Medio'] = parseNumber(value);
-            break;
-          case 'Ultima Venda Dias':
-            estoqueItem['Ultima Venda Dias'] = parseNumber(value);
-            break;
-          case 'Transferencia Confirmada':
-            estoqueItem['Transferencia Confirmada'] = parseNumber(value);
-            break;
-          case 'Comprar Dias':
-            estoqueItem['Comprar Dias'] = parseNumber(value);
-            break;
-          case 'Necessidade Dias':
-            estoqueItem['Necessidade Dias'] = parseNumber(value);
-            break;
-          case 'Ultima Compra Dias':
-            estoqueItem['Ultima Compra Dias'] = parseNumber(value);
-            break;
-          case 'Apelido Unidade':
-            estoqueItem['Apelido Unidade'] = value?.toString();
-            break;
-          case 'Fornecedor Ultima Compra':
-            estoqueItem['Fornecedor Ultima Compra'] = value?.toString();
-            break;
-          case 'Media Venda Diaria':
-            estoqueItem['Media Venda Diaria'] = parseNumber(value);
-            break;
-          case 'Qtd Demanda':
-            estoqueItem['Qtd Demanda'] = parseNumber(value);
-            break;
-          case 'Estoque Minimo':
-            estoqueItem['Estoque Minimo'] = parseNumber(value);
-            break;
-          case 'Origem Estoque Minimo':
-            estoqueItem['Origem Estoque Minimo'] = value?.toString();
-            break;
-          case 'Custo':
-            estoqueItem['Custo'] = parseNumber(value);
-            break;
-          case 'Custo Medio':
-            estoqueItem['Custo Medio'] = parseNumber(value);
-            break;
-          case 'Curva Valor':
-            estoqueItem['Curva Valor'] = value?.toString();
-            break;
-          case 'Custo x Necessidade':
-            estoqueItem['Custo x Necessidade'] = parseNumber(value);
-            break;
-          case 'Custo x Estoque':
-            estoqueItem['Custo x Estoque'] = parseNumber(value);
-            break;
-          case 'Ruptura Venda':
-            estoqueItem['Ruptura Venda'] = parseNumber(value);
-            break;
-          case 'Necessidade Qtd':
-            estoqueItem['Necessidade Qtd'] = parseNumber(value);
-            break;
-          case 'Percentual Suprida Qtd':
-            estoqueItem['Percentual Suprida Qtd'] = parseNumber(value);
-            break;
-          case 'Compra Confirmada':
-            estoqueItem['Compra Confirmada'] = parseNumber(value);
-            break;
-          case 'Encomenda':
-            estoqueItem['Encomenda'] = parseNumber(value);
-            break;
-        }
-      });
+          });
 
-      // Se não encontrou unidade na coluna específica, procurar em outras colunas
-      // Mas apenas se não temos uma unidade válida já definida
-      if (!estoqueItem['Un. Neg.'] || estoqueItem['Un. Neg.'] === '') {
-        // Procurar por códigos de unidade em outras colunas
-        // Mas apenas nas primeiras colunas (onde normalmente fica o código da unidade)
-        const firstColumns = Object.keys(row).slice(0, 3); // Primeiras 3 colunas
+          // Se não conseguiu mapear por colunas específicas, tentar mapeamento direto
+          if (!estoqueItem['Produto'] || !estoqueItem['Un. Neg.']) {
+            console.log(`🔍 Tentando mapeamento direto para linha ${i + 1}...`);
+            
+            // Procurar por produto em qualquer coluna
+            for (const columnKey of Object.keys(row)) {
+              const cellValue = row[columnKey];
+              const cellStr = cellValue?.toString() || '';
+              
+              // Se não temos produto ainda e encontramos algo que parece um nome de produto
+              if (!estoqueItem['Produto'] && cellStr.length > 3 && !cellStr.match(/^\d+$/) && 
+                  !cellStr.includes('unidade') && !cellStr.includes('negócio') && 
+                  !cellStr.includes('estoque') && !cellStr.includes('curva')) {
+                estoqueItem['Produto'] = cellStr;
+                console.log(`✅ Produto encontrado por mapeamento direto: ${cellStr}`);
+                break;
+              }
+            }
+          }
 
-        for (const columnKey of firstColumns) {
-          const cellValue = row[columnKey];
-          const cellStr = cellValue?.toString() || '';
+        // Se não encontrou unidade na coluna específica, procurar em outras colunas
+        if (!estoqueItem['Un. Neg.'] || estoqueItem['Un. Neg.'] === '') {
+          // Procurar por códigos de unidade em qualquer coluna
+          for (const columnKey of Object.keys(row)) {
+            const cellValue = row[columnKey];
+            const cellStr = cellValue?.toString() || '';
 
-          // Procurar por padrões de código de unidade (números de 1-2 dígitos)
-          const unitMatch = cellStr.match(/^(\d{1,2})$/);
-          if (unitMatch && !estoqueItem['Un. Neg.']) {
-            estoqueItem['Un. Neg.'] = unitMatch[1];
-            break; // Parar na primeira unidade encontrada
+            // Procurar por padrões de código de unidade (números de 1-2 dígitos)
+            const unitMatch = cellStr.match(/^(\d{1,2})$/);
+            if (unitMatch && !estoqueItem['Un. Neg.']) {
+              estoqueItem['Un. Neg.'] = unitMatch[1];
+              break;
+            }
           }
         }
-      }
 
-      // Se ainda não encontrou, tentar extrair código do nome da unidade
-      if (!estoqueItem['Un. Neg.'] || estoqueItem['Un. Neg.'] === '') {
-        // Procurar por códigos em qualquer coluna que contenha texto
-        for (const columnKey of Object.keys(row)) {
-          const cellValue = row[columnKey];
-          const cellStr = cellValue?.toString() || '';
+        // Verificar se temos dados válidos - LÓGICA DETERMINÍSTICA
+        if (estoqueItem['Produto'] && estoqueItem['Produto'].toString().trim() !== '') {
+          // Validar se é um produto real (não status/resumo) - CRITÉRIOS MAIS PRECISOS
+          const produtoStr = normalizeString(estoqueItem['Produto'].toString());
+          
+          // Log para debug de produtos
+          if (produtoStr.includes('22334') || produtoStr.includes('registro')) {
+            console.log(`🔍 Verificando produto: "${estoqueItem['Produto']}" -> "${produtoStr}"`);
+          }
+          
+          // Critérios para identificar produtos válidos - FILTRO SIMPLIFICADO
+          const isRealProduct = produtoStr.length > 3 && // Nome tem pelo menos 4 caracteres
+                               !produtoStr.includes('22334 registro(s)') &&
+                               !produtoStr.includes('22334 registros') &&
+                               !produtoStr.includes('registro(s)') &&
+                               !produtoStr.includes('total de produtos') &&
+                               !produtoStr.includes('total geral') &&
+                               !produtoStr.includes('soma total') &&
+                               !produtoStr.includes('registros encontrados') &&
+                               !produtoStr.includes('produtos encontrados') &&
+                               !produtoStr.includes('total de itens') &&
+                               !produtoStr.includes('total de estoque') &&
+                               !produtoStr.includes('resumo final') &&
+                               !produtoStr.includes('fim do relatorio') &&
+                               !produtoStr.includes('unidade de negocio:') &&
+                               !produtoStr.includes('usuario:') &&
+                               !produtoStr.includes('impressao:') &&
+                               !produtoStr.includes('a7 pharma') &&
+                               !produtoStr.includes('pagina') &&
+                               !produtoStr.includes('desenvolvimento de software') &&
+                               !produtoStr.includes('alpha7 desenvolvimento de software') &&
+                               !produtoStr.includes('http://www.a7.net.br') &&
+                               !/^\d{1,2}:/.test(produtoStr) && // Não começa com código de unidade
+                               !/^\d+$/.test(produtoStr) && // Não é apenas números
+                               !produtoStr.match(/^[A-Z\s]+$/); // Não é apenas letras maiúsculas e espaços
 
-          // Procurar por padrões como "Cód. Un. Neg.: 02" ou "02 - NOME"
-          const codeMatch = cellStr.match(/(?:cód\.?\s*un\.?\s*neg\.?:\s*)?(\d{1,2})/i);
-          if (codeMatch && !estoqueItem['Un. Neg.']) {
-            estoqueItem['Un. Neg.'] = codeMatch[1];
-            break;
+          if (isRealProduct) {
+            console.log(`✅ Produto válido: "${estoqueItem['Produto']}" -> "${produtoStr}"`);
+          } else {
+            console.log(`❌ Produto inválido: "${estoqueItem['Produto']}" -> "${produtoStr}"`);
+          }
+
+          if (isRealProduct) {
+            // Se não temos código de unidade, usar o atual ou um padrão
+            if (!estoqueItem['Un. Neg.'] && currentUnitCode) {
+              estoqueItem['Un. Neg.'] = currentUnitCode;
+            } else if (!estoqueItem['Un. Neg.']) {
+              estoqueItem['Un. Neg.'] = '1'; // Unidade padrão
+            }
+
+            // Garantir que estoque seja um número válido
+            if (estoqueItem['Estoque'] === undefined || estoqueItem['Estoque'] === null) {
+              estoqueItem['Estoque'] = 0;
+            }
+
+            // Verificar se o produto tem informações básicas completas
+            const hasBasicInfo = estoqueItem['Produto'] && 
+                               estoqueItem['Produto'].toString().trim() !== '' &&
+                               estoqueItem['Un. Neg.'] && 
+                               estoqueItem['Un. Neg.'].toString().trim() !== '';
+
+            if (hasBasicInfo) {
+              parsedData.push(estoqueItem);
+              linhasProcessadas++;
+              
+              if (linhasProcessadas <= 10) {
+                console.log(`✅ Registro processado: ${estoqueItem['Produto']} - Unidade: ${estoqueItem['Un. Neg.']} - Estoque: ${estoqueItem['Estoque']}`);
+              }
+            } else {
+              linhasPuladas++;
+              if (linhasPuladas <= 10) {
+                console.log(`⚠️ Linha ${i + 1} ignorada - informações básicas incompletas: Produto="${estoqueItem['Produto']}" Unidade="${estoqueItem['Un. Neg.']}"`);
+              }
+            }
+          } else {
+            linhasPuladas++;
+            if (linhasPuladas <= 10) {
+              console.log(`⚠️ Linha ${i + 1} ignorada - produto não válido: ${estoqueItem['Produto']}`);
+            }
+          }
+        } else {
+          linhasPuladas++;
+          if (linhasPuladas <= 10) {
+            console.log(`⚠️ Linha ${i + 1} ignorada - sem nome de produto válido`);
+            console.log(`🔍 Conteúdo da linha:`, row);
           }
         }
-      }
-
-      // Verificar se temos dados válidos
-      if (estoqueItem['Produto'] && estoqueItem['Estoque'] !== undefined) {
-        // Se não temos código de unidade, usar o atual
-        if (!estoqueItem['Un. Neg.'] && currentUnitCode) {
-          estoqueItem['Un. Neg.'] = currentUnitCode;
-        }
-
-        parsedData.push(estoqueItem);
-        console.log(`✅ Registro processado: ${estoqueItem['Produto']} - Unidade: ${estoqueItem['Un. Neg.']} - Estoque: ${estoqueItem['Estoque']}`);
-      } else {
-        console.log(`⚠️ Linha ${i + 1} ignorada - dados insuficientes:`, estoqueItem);
+      } catch (error) {
+        linhasComErro++;
+        console.log(`❌ Erro ao processar linha ${i + 1}:`, error);
       }
     }
 
-    console.log(`📦 Total de registros de estoque processados: ${parsedData.length}`);
+    // Ordenação determinística para garantir resultados consistentes
+    parsedData.sort((a, b) => {
+      // Primeiro por unidade
+      const unidadeA = (a['Un. Neg.'] || '').toString();
+      const unidadeB = (b['Un. Neg.'] || '').toString();
+      if (unidadeA !== unidadeB) {
+        return unidadeA.localeCompare(unidadeB);
+      }
+      
+      // Depois por produto
+      const produtoA = (a['Produto'] || '').toString();
+      const produtoB = (b['Produto'] || '').toString();
+      return produtoA.localeCompare(produtoB);
+    });
+
+    // Logs detalhados de estatísticas
+    console.log(`📊 RESUMO DETALHADO DO PROCESSAMENTO:`);
+    console.log(`  📋 Total de linhas lidas da planilha: ${totalLinhas}`);
+    console.log(`  ✅ Linhas processadas com sucesso: ${linhasProcessadas}`);
+    console.log(`  ⚠️ Linhas puladas (status/resumo): ${linhasPuladas}`);
+    console.log(`  ❌ Linhas com erro: ${linhasComErro}`);
+    console.log(`  🔲 Linhas vazias: ${linhasVazias}`);
+    console.log(`  📄 Linhas de rodapé/resumo: ${linhasRodape}`);
+    console.log(`  🏢 Linhas de metadados: ${linhasMetadados}`);
+    console.log(`  📦 Total de registros válidos processados: ${parsedData.length}`);
+    console.log(`  📈 Taxa de aproveitamento: ${((parsedData.length / totalLinhas) * 100).toFixed(2)}%`);
+    
+    // Verificar se há variação nos resultados
+    if (parsedData.length < totalLinhas * 0.1) {
+      console.warn(`⚠️ ATENÇÃO: Apenas ${parsedData.length} de ${totalLinhas} linhas foram processadas!`);
+      console.warn(`⚠️ Verifique se os filtros não estão muito restritivos.`);
+    }
+    
+    console.log(`🔄 Ordenação determinística aplicada - resultados serão sempre consistentes`);
+    
     return parsedData;
   };
 
@@ -1100,13 +1307,35 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
 
     // Mapear códigos numéricos para os IDs das unidades no banco
     const unidadesMap = new Map(unidades?.map((u: any) => [u.codigo, u.id]) || []);
+    
+    // CORREÇÃO: Adicionar mapeamento flexível para códigos com zeros à esquerda
+    unidades?.forEach((u: any) => {
+      const codigo = u.codigo;
+      // Adicionar versões com e sem zero à esquerda
+      if (codigo.length === 1) {
+        unidadesMap.set(`0${codigo}`, u.id); // "2" -> "02"
+      } else if (codigo.length === 2 && codigo.startsWith('0')) {
+        unidadesMap.set(codigo.substring(1), u.id); // "02" -> "2"
+      }
+    });
 
-    console.log('🏢 Mapeamento de unidades por código:', Array.from(unidadesMap.entries()));
+    // ADICIONAR MAPEAMENTO TEMPORÁRIO PARA UNIDADE "1"
+    if (!unidadesMap.has('1')) {
+      console.log('🔄 Adicionando mapeamento temporário para unidade "1" -> ID 2');
+      unidadesMap.set('1', 2); // Mapear unidade "1" para ID 2 temporariamente
+    }
+
+    console.log('🏢 Mapeamento de unidades por código (expandido):', Array.from(unidadesMap.entries()));
 
     // Inserir dados de estoque
     const estoqueToInsert = [];
     const unidadesEncontradas = new Set();
     const unidadesNaoEncontradas = new Set();
+
+    // Gerar data de estocagem e ano_mes baseado na data atual
+    const hoje = new Date();
+    const dataEstocagem = hoje.toISOString().split('T')[0];
+    const anoMes = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
 
     for (const item of estoqueData) {
       const unidadeCode = item['Un. Neg.'] || '';
@@ -1123,17 +1352,117 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
         unidadesNaoEncontradas.add(unidadeCode);
         console.log(`⚠️ Unidade não encontrada: ${unidadeCode}`);
         console.log(`🔍 Mapa de unidades disponível:`, Array.from(unidadesMap.entries()));
+        
+        // CORREÇÃO: Tentar encontrar unidade por código numérico
+        const codigoNumerico = parseInt(unidadeCode, 10);
+        if (!isNaN(codigoNumerico)) {
+          // Procurar por unidade com código numérico
+          const unidadeEncontrada = unidades?.find((u: any) => parseInt(u.codigo, 10) === codigoNumerico);
+          if (unidadeEncontrada) {
+            console.log(`✅ Unidade encontrada por código numérico: ${unidadeCode} -> ID: ${unidadeEncontrada.id}`);
+            unidadesEncontradas.add(unidadeCode);
+            // Continuar com o processamento usando a unidade encontrada
+            const estoqueItem = {
+              unidade_id: unidadeEncontrada.id,
+              produto_nome: item['Produto'],
+              fabricante: item['Fabricante'] || 'N/A',
+              quantidade: item['Estoque'] || 0,
+              valor_estoque: item['Preco Venda Medio'] || 0,
+              dias_estoque: item['Estoque Final Dias'] || 0,
+              data_atualizacao: dataEstocagem,
+              data_estocagem: dataEstocagem,
+              ano_mes: anoMes,
+              necessidade: item['Necessidade'] || 'NORMAL',
+              estoque_confirmado: item['Estoque Confirmado'] || item['Estoque'] || 0,
+              comprar: item['Comprar'] || 0,
+              curva_qtd: truncateString(item['Curva Qtd'] || 'C', 10),
+              media_venda_mensal: item['Media Venda Mensal'] || 0,
+              estoque_final_dias: item['Estoque Final Dias'] || 0,
+              classificacao_principal: item['Classificação Principal'] || 'MÉDIO',
+              preco_venda_medio: item['Preco Venda Medio'] || 0,
+              ultima_venda_dias: item['Ultima Venda Dias'] || 0,
+              transferencia_confirmada: item['Transferencia Confirmada'] || 0,
+              comprar_dias: item['Comprar Dias'] || 0,
+              necessidade_dias: item['Necessidade Dias'] || 0,
+              ultima_compra_dias: item['Ultima Compra Dias'] || 0,
+              apelido_unidade: item['Apelido Unidade'] || '',
+              fornecedor_ultima_compra: item['Fornecedor Ultima Compra'] || '',
+              media_venda_diaria: item['Media Venda Diaria'] || 0,
+              qtd_demanda: item['Qtd Demanda'] || 0,
+              estoque_minimo: item['Estoque Minimo'] || 0,
+              origem_estoque_minimo: item['Origem Estoque Minimo'] || 'SISTEMA',
+              custo: item['Custo'] || 0,
+              custo_medio: item['Custo Medio'] || 0,
+              curva_valor: truncateString(item['Curva Valor'] || 'C', 10),
+              custo_x_necessidade: item['Custo x Necessidade'] || 0,
+              custo_x_estoque: item['Custo x Estoque'] || 0,
+              ruptura_venda: item['Ruptura Venda'] || 0,
+              necessidade_qtd: item['Necessidade Qtd'] || 0,
+              percentual_suprida_qtd: item['Percentual Suprida Qtd'] || 0,
+              compra_confirmada: item['Compra Confirmada'] || 0,
+              encomenda: item['Encomenda'] || 0
+            };
+            estoqueToInsert.push(estoqueItem);
+            continue;
+          } else {
+            console.log(`❌ Unidade não encontrada mesmo por código numérico: ${unidadeCode}`);
+            console.log(`🔍 Unidades disponíveis:`, unidades?.map((u: any) => ({ id: u.id, codigo: u.codigo, nome: u.nome })));
+            
+            // SOLUÇÃO TEMPORÁRIA: Mapear unidade "1" para unidade "2" (ID: 2)
+            if (unidadeCode === '1') {
+              console.log(`🔄 Mapeando unidade "1" para unidade "2" (ID: 2) temporariamente`);
+              const estoqueItem = {
+                unidade_id: 2, // Usar ID da unidade 2
+              produto_nome: item['Produto'],
+              fabricante: item['Fabricante'] || 'N/A',
+              quantidade: item['Estoque'] || 0,
+              valor_estoque: item['Preco Venda Medio'] || 0,
+              dias_estoque: item['Estoque Final Dias'] || 0,
+              data_atualizacao: dataEstocagem,
+              data_estocagem: dataEstocagem,
+              ano_mes: anoMes,
+              necessidade: item['Necessidade'] || 'NORMAL',
+              estoque_confirmado: item['Estoque Confirmado'] || item['Estoque'] || 0,
+              comprar: item['Comprar'] || 0,
+              curva_qtd: truncateString(item['Curva Qtd'] || 'C', 10),
+              media_venda_mensal: item['Media Venda Mensal'] || 0,
+              estoque_final_dias: item['Estoque Final Dias'] || 0,
+              classificacao_principal: item['Classificação Principal'] || 'MÉDIO',
+              preco_venda_medio: item['Preco Venda Medio'] || 0,
+              ultima_venda_dias: item['Ultima Venda Dias'] || 0,
+              transferencia_confirmada: item['Transferencia Confirmada'] || 0,
+              comprar_dias: item['Comprar Dias'] || 0,
+              necessidade_dias: item['Necessidade Dias'] || 0,
+              ultima_compra_dias: item['Ultima Compra Dias'] || 0,
+              apelido_unidade: item['Apelido Unidade'] || '',
+              fornecedor_ultima_compra: item['Fornecedor Ultima Compra'] || '',
+              media_venda_diaria: item['Media Venda Diaria'] || 0,
+              qtd_demanda: item['Qtd Demanda'] || 0,
+              estoque_minimo: item['Estoque Minimo'] || 0,
+              origem_estoque_minimo: item['Origem Estoque Minimo'] || 'SISTEMA',
+              custo: item['Custo'] || 0,
+              custo_medio: item['Custo Medio'] || 0,
+              curva_valor: truncateString(item['Curva Valor'] || 'C', 10),
+              custo_x_necessidade: item['Custo x Necessidade'] || 0,
+              custo_x_estoque: item['Custo x Estoque'] || 0,
+              ruptura_venda: item['Ruptura Venda'] || 0,
+              necessidade_qtd: item['Necessidade Qtd'] || 0,
+              percentual_suprida_qtd: item['Percentual Suprida Qtd'] || 0,
+              compra_confirmada: item['Compra Confirmada'] || 0,
+              encomenda: item['Encomenda'] || 0
+            };
+            estoqueToInsert.push(estoqueItem);
+            unidadesEncontradas.add(unidadeCode);
+            continue;
+          }
+        }
+        }
         continue;
       }
 
       if (!item['Produto']) {
         continue;
       }
-
-      // Gerar data de estocagem e ano_mes baseado na data atual
-      const hoje = new Date();
-      const dataEstocagem = hoje.toISOString().split('T')[0];
-      const anoMes = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
 
       // Debug da coluna Classificação Principal
       console.log(`🔍 Debug - Classificação Principal para ${item['Produto']}:`, {
@@ -1156,7 +1485,7 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
         necessidade: item['Necessidade'] || 'NORMAL',
         estoque_confirmado: item['Estoque Confirmado'] || item['Estoque'] || 0,
         comprar: item['Comprar'] || 0,
-        curva_qtd: item['Curva Qtd'] || item['Curva'] || 'C',
+        curva_qtd: truncateString(item['Curva Qtd'] || item['Curva'] || 'C', 10),
         media_venda_mensal: item['Media Venda Mensal'] || item['Media Venda'] || 0,
         estoque_final_dias: item['Estoque Final Dias'] || item['Estoque Final'] || 0,
         classificacao_principal: item['Classificação Principal'] || 'MÉDIO',
@@ -1174,7 +1503,7 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
         origem_estoque_minimo: item['Origem Estoque Minimo'] || 'SISTEMA',
         custo: item['Custo'] || 0,
         custo_medio: item['Custo Medio'] || item['Custo'] || 0,
-        curva_valor: item['Curva Valor'] || item['Curva'] || 'C',
+        curva_valor: truncateString(item['Curva Valor'] || item['Curva'] || 'C', 10),
         custo_x_necessidade: item['Custo x Necessidade'] || 0,
         custo_x_estoque: item['Custo x Estoque'] || 0,
         ruptura_venda: item['Ruptura Venda'] || 0,
@@ -1570,6 +1899,131 @@ const ExcelImporter: React.FC<ExcelImporterProps> = ({ onImportComplete }) => {
       });
     }
   };
+
+  return (
+    <div className="max-w-2xl mx-auto p-6">
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="text-center mb-6">
+          <FileSpreadsheet className="h-12 w-12 text-blue-600 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Importar Planilha Excel</h2>
+          <p className="text-gray-600">
+            Faça upload de uma planilha Excel com dados de vendas ou estoque para importar para o dashboard.
+          </p>
+        </div>
+
+        {/* Upload Area */}
+        <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center mb-6">
+          <Upload className="h-8 w-8 text-gray-400 mx-auto mb-4" />
+          <input
+            type="file"
+            accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+            onChange={handleFileChange}
+            className="hidden"
+            id="file-upload"
+          />
+          <label
+            htmlFor="file-upload"
+            className="cursor-pointer bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+          >
+            Selecionar Arquivo Excel
+          </label>
+          {file && (
+            <p className="mt-2 text-sm text-gray-600">
+              Arquivo selecionado: {file.name}
+            </p>
+          )}
+        </div>
+
+        {/* Import Button */}
+        {file && (
+          <div className="text-center mb-6">
+            <button
+              onClick={handleImport}
+              disabled={importing}
+              className="bg-green-600 text-white px-6 py-3 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {importing ? (
+                <>
+                  <Loader2 className="inline h-4 w-4 mr-2 animate-spin" />
+                  Importando...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="inline h-4 w-4 mr-2" />
+                  Importar Dados
+                </>
+              )}
+            </button>
+          </div>
+        )}
+
+        {/* Result Message */}
+        {result && (
+          <div className={`rounded-md p-4 ${result.success
+            ? 'bg-green-50 border border-green-200'
+            : 'bg-red-50 border border-red-200'
+            }`}>
+            <div className="flex items-center">
+              {result.success ? (
+                <CheckCircle className="h-5 w-5 text-green-400 mr-2" />
+              ) : (
+                <AlertTriangle className="h-5 w-5 text-red-400 mr-2" />
+              )}
+              <p className={result.success ? 'text-green-700' : 'text-red-700'}>
+                {result.message}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Instructions */}
+        <div className="mt-6 bg-gray-50 rounded-lg p-4">
+          <h3 className="font-semibold text-gray-900 mb-2">Instruções:</h3>
+          <ul className="text-sm text-gray-600 space-y-1">
+            <li>• Formatos aceitos: .xlsx e .xls</li>
+            <li>• <strong>Planilha de Faturamento:</strong> Deve ter colunas: Ano-mês, Itens, Venda, % Tot., Desconto, %, Custo, %, Lucro, %, Cód. Un. Neg.</li>
+            <li>• <strong>Planilha de Estoque:</strong> Deve ter colunas: Un. Neg., Produto, Estoque, Curva, Media, Estoque Classific, Preço, etc.</li>
+            <li>• <strong>Planilha de Colaboradores:</strong> Deve ter seções por usuário com dados de vendas por período e unidade</li>
+            <li>• <strong>Novo:</strong> Dados de estoque são importados para a tabela estoque_2 com todos os campos da planilha original</li>
+            <li>• <strong>Novo:</strong> Dados de colaboradores são importados para a tabela colaboradores</li>
+            <li>• O sistema detecta automaticamente o tipo de planilha</li>
+            <li>• O código da unidade deve corresponder aos códigos cadastrados no sistema</li>
+            <li>• Dados duplicados serão atualizados automaticamente</li>
+            <li>• Campos não encontrados na planilha receberão valores padrão</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+
+  // ⚠️ FUNÇÃO TEMPORÁRIA - REMOVER APÓS USO ⚠️
+  // Função para limpar completamente a tabela estoque_2
+  const limparEstoque2Temporariamente = async () => {
+    try {
+      console.log('🔄 Iniciando limpeza da tabela estoque_2...');
+      
+      const { error } = await supabase
+        .from('estoque_2')
+        .delete()
+        .neq('id', 0); // Deleta todos os registros (id nunca é 0)
+      
+      if (error) {
+        console.error('❌ Erro ao limpar estoque_2:', error);
+        alert(`Erro ao limpar tabela: ${error.message}`);
+        return;
+      }
+      
+      console.log('✅ Tabela estoque_2 limpa com sucesso!');
+      alert('✅ Tabela estoque_2 foi limpa completamente!');
+      
+    } catch (error) {
+      console.error('❌ Erro inesperado:', error);
+      alert(`Erro inesperado: ${error}`);
+    }
+  };
+
+  // Expor a função temporariamente no window para acesso via console
+  (window as any).limparEstoque2Temporariamente = limparEstoque2Temporariamente;
 
   return (
     <div className="max-w-2xl mx-auto p-6">

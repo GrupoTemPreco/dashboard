@@ -51,10 +51,90 @@ import { ptBR } from 'date-fns/locale';
 import ChartCard from './ChartCard';
 import ExcelImporter from './ExcelImporter';
 import DashboardFilters from './DashboardFilters';
+import ConnectionStatus from './ConnectionStatus';
 import { useSupabase } from '../hooks/useSupabase';
 import { supabase } from '../lib/supabase';
 import { DashboardFilters as FilterType, Faturamento, Estoque2, Unidade, Colaborador, VendaItem } from '../types';
 import '../styles/dashboard.css';
+
+// Teste de conexão do Supabase
+const testSupabaseConnection = async () => {
+  console.log('🔌 Iniciando teste de conexão do Supabase...');
+  
+  try {
+    // Verificar se as variáveis de ambiente estão configuradas
+    console.log('🔌 Verificando variáveis de ambiente...');
+    console.log('🔌 VITE_SUPABASE_URL configurado:', !!import.meta.env.VITE_SUPABASE_URL);
+    console.log('🔌 VITE_SUPABASE_ANON_KEY configurado:', !!import.meta.env.VITE_SUPABASE_ANON_KEY);
+    
+    if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+      console.error('❌ Variáveis de ambiente do Supabase não configuradas!');
+      return false;
+    }
+    
+    console.log('🔌 URL do Supabase:', import.meta.env.VITE_SUPABASE_URL);
+    
+    // Teste 1: Verificar se o cliente Supabase foi criado corretamente
+    console.log('🔌 Teste 1: Verificando cliente Supabase...');
+    if (!supabase) {
+      console.error('❌ Cliente Supabase não foi criado!');
+      return false;
+    }
+    console.log('✅ Cliente Supabase criado com sucesso');
+    
+    // Teste 2: Tentar fazer uma query simples
+    console.log('🔌 Teste 2: Executando query de teste...');
+    const { data: testData, error: testError } = await supabase
+      .from('unidades')
+      .select('*')
+      .limit(1);
+    
+    if (testError) {
+      console.error('❌ Erro na query de teste:', testError);
+      return false;
+    }
+    
+    console.log('✅ Query de teste executada com sucesso');
+    console.log('🔌 Dados de teste:', testData);
+    
+    // Teste 3: Verificar se conseguimos acessar a tabela faturamento
+    console.log('🔌 Teste 3: Verificando acesso à tabela faturamento...');
+    const { data: faturamentoData, error: faturamentoError } = await supabase
+      .from('faturamento')
+      .select('*')
+      .limit(1);
+    
+    if (faturamentoError) {
+      console.error('❌ Erro ao acessar tabela faturamento:', faturamentoError);
+      return false;
+    }
+    
+    console.log('✅ Acesso à tabela faturamento OK');
+    console.log('🔌 Contagem faturamento:', faturamentoData);
+    
+    // Teste 4: Verificar se conseguimos acessar a tabela estoque_2
+    console.log('🔌 Teste 4: Verificando acesso à tabela estoque_2...');
+    const { data: estoqueData, error: estoqueError } = await supabase
+      .from('estoque_2')
+      .select('*')
+      .limit(1);
+    
+    if (estoqueError) {
+      console.error('❌ Erro ao acessar tabela estoque_2:', estoqueError);
+      return false;
+    }
+    
+    console.log('✅ Acesso à tabela estoque_2 OK');
+    console.log('🔌 Contagem estoque_2:', estoqueData);
+    
+    console.log('🎉 Todos os testes de conexão passaram com sucesso!');
+    return true;
+    
+  } catch (error) {
+    console.error('❌ Erro geral no teste de conexão:', error);
+    return false;
+  }
+};
 
 interface ColaboradorMetricsAcumulador {
   user_name: string;
@@ -372,7 +452,15 @@ const Dashboard: React.FC = () => {
 
   // Carregar dados iniciais
   useEffect(() => {
-    loadData();
+    // Teste de conexão do Supabase antes de carregar os dados
+    testSupabaseConnection().then((connectionSuccess) => {
+      if (connectionSuccess) {
+        console.log('✅ Conexão com Supabase OK - carregando dados...');
+        loadData();
+      } else {
+        console.error('❌ Falha na conexão com Supabase - não foi possível carregar dados');
+      }
+    });
   }, []);
 
   // Recarregar dados quando os filtros mudarem
@@ -2021,6 +2109,11 @@ const Dashboard: React.FC = () => {
             availablePeriods={availablePeriods}
             setSelectedMonth={setSelectedMonth}
           />
+
+          {/* Status da Conexão */}
+          <div className="mb-4 p-3 bg-gray-50 rounded-lg border">
+            <ConnectionStatus />
+          </div>
 
 
 

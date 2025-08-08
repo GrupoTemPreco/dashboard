@@ -1,12 +1,32 @@
 const { createClient } = require('@supabase/supabase-js');
+const path = require('path');
+const fs = require('fs');
 
-// Configuração do Supabase
+// Carregar variáveis de ambiente
+function loadEnvFiles() {
+  const envFiles = ['.env', '.env.local', '.env.development'];
+  
+  envFiles.forEach(envFile => {
+    const envPath = path.join(process.cwd(), envFile);
+    if (fs.existsSync(envPath)) {
+      console.log(`📁 Carregando variáveis de: ${envFile}`);
+      require('dotenv').config({ path: envPath });
+    }
+  });
+}
+
+loadEnvFiles();
+
 const supabaseUrl = process.env.VITE_SUPABASE_URL;
 const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
-  console.log('❌ Variáveis de ambiente do Supabase não encontradas');
-  console.log('Por favor, configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY');
+  console.log('❌ ERRO: Variáveis de ambiente não configuradas!');
+  console.log('');
+  console.log('📋 Para resolver, crie um arquivo .env ou .env.local na raiz do projeto com:');
+  console.log('');
+  console.log('VITE_SUPABASE_URL=https://seu-projeto.supabase.co');
+  console.log('VITE_SUPABASE_ANON_KEY=sua_chave_anonima_do_supabase');
   process.exit(1);
 }
 
